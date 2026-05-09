@@ -49,12 +49,12 @@ define Package/mtwifi-cfg/install
     $(INSTALL_BIN) ./files/wapp/steeringsta $(1)/sbin/
     $(INSTALL_BIN) ./files/wapp/wapp $(1)/sbin/
     $(INSTALL_BIN) ./files/wapp/wappctrl $(1)/sbin/
-    $(INSTALL_BIN) ./files/wapp/mapd_cfg $(1)/sbin/
 
     $(INSTALL_DIR) $(1)/etc/map
     $(CP) ./files/wapp/1905d.cfg $(1)/etc/map/
     $(CP) ./files/wapp/wapp_ap.conf $(1)/etc/
     $(CP) ./files/wapp/wapp_ap_ra0.conf $(1)/etc/
+	$(CP) ./files/wapp/mapd_cfg $(1)/etc/
 endef
 
 $(eval $(call BuildPackage,mtwifi-cfg))
