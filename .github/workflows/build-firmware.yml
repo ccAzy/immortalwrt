@@ -48,6 +48,23 @@ jobs:
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
+      - name: Debug - list all firmware files
+        run: |
+          echo "=== All generated files ==="
+          ls -la bin/targets/mediatek/filogic/
+          echo ""
+          echo "=== sysupgrade files ==="
+          ls -la bin/targets/mediatek/filogic/*sysupgrade* 2>/dev/null || echo "NO sysupgrade files found!"
+          echo ""
+          echo "=== ITB files ==="
+          ls -la bin/targets/mediatek/filogic/*.itb 2>/dev/null || echo "NO itb files!"
+          echo ""
+          echo "=== BIN files ==="
+          ls -la bin/targets/mediatek/filogic/*.bin 2>/dev/null || echo "NO bin files!"
+          echo ""
+          echo "=== File types ==="
+          file bin/targets/mediatek/filogic/*sysupgrade* 2>/dev/null || echo "No sysupgrade files to check"
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
