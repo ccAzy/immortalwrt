@@ -3,15 +3,12 @@ name: Build Cudy TR3000 Firmware
 on:
   workflow_dispatch:
   push:
-    paths:
-      - 'target/linux/mediatek/filogic/config-6.18'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -33,7 +30,7 @@ jobs:
           cat > .config << 'EOF'
 CONFIG_TARGET_mediatek=y
 CONFIG_TARGET_mediatek_filogic=y
-CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1=y
+CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y
 CONFIG_DEVEL=y
 CONFIG_AUTOREMOVE=y
 CONFIG_CCACHE=y
@@ -42,13 +39,13 @@ CONFIG_TARGET_ROOTFS_SQUASHFS=y
 EOF
           make defconfig
 
-      - name: Download package sources
+      - name: Download sources
         run: make -j$(nproc) download V=s
-        
-      - name: Compile firmware
-        run: make -j$(nproc) V=s
 
-      - name: Upload artifacts
+      - name: Compile
+        run: make -j$(nproc) V=s || make -j1 V=s
+
+      - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: cudy-tr3000-firmware
