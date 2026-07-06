@@ -18,12 +18,7 @@ jobs:
           ./scripts/feeds install -a
       - name: Gen config
         run: |
-          echo 'CONFIG_TARGET_mediatek=y' >> .config
-          echo 'CONFIG_TARGET_mediatek_filogic=y' >> .config
-          echo 'CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y' >> .config
-          echo 'CONFIG_DEVEL=y' >> .config
-          echo 'CONFIG_AUTOREMOVE=y' >> .config
-          echo 'CONFIG_CCACHE=y' >> .config
+          cp .github/seed.config .config
           make defconfig
       - name: Download sources
         run: make -j$(nproc) download V=s
