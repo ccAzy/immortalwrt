@@ -157,7 +157,7 @@ define Device/abt_asr3000
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -241,7 +241,7 @@ define Device/acer_predator-w6x-ubootmod
   DEVICE_DTS_DIR := ../dts
   DEVICE_PACKAGES := kmod-usb3 kmod-leds-ws2812b kmod-mt7915e kmod-mt7986-firmware mt7986-wo-firmware automount
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -399,8 +399,9 @@ define Device/arcadyan_mozart
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   KERNEL_INITRAMFS_SUFFIX := .itb
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   ARTIFACTS := emmc-preloader.bin emmc-bl31-uboot.fip emmc-gpt.bin
   ARTIFACT/emmc-gpt.bin := mt7988-mozart-gpt
   ARTIFACT/emmc-preloader.bin	:= mt7988-bl2 emmc-comb
@@ -566,8 +567,9 @@ define Device/asus_zenwifi-bt8-ubootmod
   KERNEL_LOADADDR := 0x46000000
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
 endef
 TARGET_DEVICES += asus_zenwifi-bt8-ubootmod
 
@@ -584,7 +586,7 @@ define Device/bananapi_bpi-r3
   DEVICE_DTS_LOADADDR := 0x43f00000
   DEVICE_PACKAGES := kmod-hwmon-pwmfan kmod-i2c-gpio kmod-mt7915e kmod-mt7986-firmware kmod-sfp \
 		     kmod-usb3 f2fsck mkf2fs mt7986-wo-firmware automount
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_LOADADDR := 0x44000000
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   ARTIFACTS := \
@@ -622,6 +624,7 @@ endif
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   DEVICE_DTC_FLAGS := --pad 4096
   DEVICE_COMPAT_VERSION := 1.3
   DEVICE_COMPAT_MESSAGE := First sfp port renamed from eth1 to sfp1
@@ -686,7 +689,7 @@ define Device/bananapi_bpi-r4-common
 		     kmod-rtc-pcf8563 kmod-sfp kmod-phy-aquantia kmod-usb3 e2fsprogs f2fsck mkf2fs mt7988-wo-firmware automount
   DEVICE_COMPAT_VERSION := 1.1
   DEVICE_COMPAT_MESSAGE := The non-switch ports were renamed to match the board/case labels
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_LOADADDR := 0x46000000
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   ARTIFACTS := \
@@ -736,6 +739,7 @@ define Device/bananapi_bpi-r4-common
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
 endef
 
 define Device/bananapi_bpi-r4
@@ -777,11 +781,12 @@ define Device/bananapi_bpi-r4-lite
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   ARTIFACTS := \
 	       emmc-preloader.bin emmc-bl31-uboot.fip \
 	       nor-preloader.bin nor-bl31-uboot.fip \
@@ -828,7 +833,7 @@ define Device/bazis_ax3000wm
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -897,7 +902,7 @@ define Device/cetron_ct3003-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -956,7 +961,7 @@ define Device/cmcc_a10-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -985,7 +990,7 @@ define Device/cmcc_rax3000m_common
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
   IMAGE/sysupgrade.itb := append-kernel | \
 	fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | \
@@ -1076,7 +1081,7 @@ define Device/comfast_cf-wr632ax-ubootmod
   DEVICE_VARIANT := (OpenWrt U-Boot layout)
   DEVICE_DTS := mt7981b-comfast-cf-wr632ax-ubootmod
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1174,7 +1179,7 @@ define Device/creatlentem_clt-r30b1-ubi
   DEVICE_ALT2_VARIANT := (UBI)
   DEVICE_DTS := mt7981b-creatlentem-clt-r30b1-ubi
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1271,7 +1276,7 @@ define Device/cudy_m3000-v1-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1316,7 +1321,7 @@ define Device/cudy_m3000-v2-yt8821-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1392,7 +1397,7 @@ define Device/cudy_tr3000-v1-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1451,7 +1456,7 @@ define Device/cudy_wr3000e-v1-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1493,7 +1498,7 @@ define Device/cudy_wr3000s-v1-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1535,7 +1540,7 @@ define Device/cudy_wr3000h-v1-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1577,7 +1582,7 @@ define Device/cudy_wr3000p-v1-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1619,7 +1624,7 @@ define Device/cudy_wbr3000uax-v1-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -1760,7 +1765,7 @@ define Device/gatonetworks_gdsp
   mt7981b-gatonetworks-gdsp-sd-boot
   DEVICE_DTS_DIR := ../dts
   DEVICE_DTC_FLAGS := --pad 4096
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE_SIZE := 32768k
   DEVICE_PACKAGES := e2fsprogs f2fsck mkf2fs fitblk \
     kmod-mt7915e kmod-mt7981-firmware \
@@ -1775,6 +1780,7 @@ define Device/gatonetworks_gdsp
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
 endef
 TARGET_DEVICES += gatonetworks_gdsp
 
@@ -1903,7 +1909,7 @@ define Device/globitel_bt-r320
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
   IMAGE/sysupgrade.itb := append-kernel | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | \
@@ -1927,7 +1933,7 @@ define Device/h3c_magic-nx30-pro
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
   IMAGE_SIZE := 65536k
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2016,7 +2022,7 @@ define Device/imou_hx21
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2136,7 +2142,7 @@ define Device/jcg_q30-pro
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2164,7 +2170,7 @@ define Device/jdcloud_re-cp-03
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
   IMAGE/sysupgrade.itb := append-kernel | \
 	fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | \
@@ -2333,7 +2339,7 @@ define Device/konka_komi-a31
   KERNEL_LOADADDR := 0x44000000
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | lzma
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2384,7 +2390,7 @@ define Device/livinet_zr-3020-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2429,9 +2435,10 @@ define Device/mediatek_mt7981-rfb
   KERNEL_INITRAMFS_SUFFIX := .itb
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   ARTIFACTS := \
 	emmc-preloader.bin emmc-bl31-uboot.fip \
 	nor-preloader.bin nor-bl31-uboot.fip \
@@ -2527,12 +2534,13 @@ define Device/mediatek_mt7987a-rfb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := .itb
   KERNEL_IN_UBI := 1
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   ARTIFACTS := \
 	snand-preloader.bin \
 	snand-bl31-uboot.fip \
@@ -2581,8 +2589,9 @@ define Device/mediatek_mt7988a-rfb
   KERNEL_INITRAMFS_SUFFIX := .itb
   KERNEL_IN_UBI := 1
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   ARTIFACTS := \
 	       emmc-gpt.bin emmc-preloader.bin emmc-bl31-uboot.fip \
 	       nor-preloader.bin nor-bl31-uboot.fip \
@@ -2669,7 +2678,7 @@ define Device/mercusys_mr90x-v1-ubi
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2694,7 +2703,7 @@ define Device/netcore_n60
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2721,7 +2730,7 @@ define Device/netcore_n60-pro
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2823,7 +2832,7 @@ define Device/netis_eap930-v1
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2863,9 +2872,10 @@ define Device/netis_nx30v2
   KERNEL_INITRAMFS_SUFFIX := .itb
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE_SIZE := 117248k
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   ARTIFACTS := spim-nand-preloader.bin spim-nand-bl31-uboot.fip
   ARTIFACT/spim-nand-preloader.bin	:= mt7981-bl2 spim-nand-ddr3
   ARTIFACT/spim-nand-bl31-uboot.fip	:= mt7981-bl31-uboot netis_nx30v2
@@ -2882,7 +2892,7 @@ define Device/netis_nx31
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2907,7 +2917,7 @@ define Device/netis_nx32u
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -2934,7 +2944,7 @@ define Device/nokia_ea0326gmp
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3008,9 +3018,10 @@ define Device/openwrt_one
   KERNEL_INITRAMFS_SUFFIX := .itb
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+  IMAGE/sysupgrade.bin := append-kernel | append-rootfs | append-metadata
   ARTIFACTS := \
 	nor-preloader.bin nor-bl31-uboot.fip \
 	snand-preloader.bin snand-bl31-uboot.fip \
@@ -3047,7 +3058,7 @@ define Device/qihoo_360t7-common
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3104,7 +3115,7 @@ define Device/routerich_ax3000-ubootmod
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3141,7 +3152,7 @@ define Device/routerich_be7200
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL_LOADADDR := 0x40000000
   KERNEL := kernel-bin | gzip
@@ -3191,7 +3202,7 @@ define Device/snr_snr-cpe-ax2
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3392,7 +3403,7 @@ define Device/tplink_tl-7dr-common
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3441,7 +3452,7 @@ define Device/tplink_tl-xdr-common
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3623,7 +3634,7 @@ define Device/wavlink_wl-wnt100x3-ubootmod
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3686,7 +3697,7 @@ define Device/xiaomi_mi-router-ax3000t-ubootmod
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3737,7 +3748,7 @@ define Device/xiaomi_mi-router-wr30u-ubootmod
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -3784,7 +3795,7 @@ define Device/xiaomi_redmi-router-ax6000-ubootmod
   DEVICE_DTS_DIR := ../dts
   DEVICE_PACKAGES := kmod-leds-ws2812b kmod-mt7915e kmod-mt7986-firmware mt7986-wo-firmware
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -3988,7 +3999,7 @@ define Device/zyxel_ex5601-t0-ubootmod
   DEVICE_DTS_DIR := ../dts
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7986-firmware mt7986-wo-firmware kmod-usb3 automount
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 256k
   PAGESIZE := 4096
@@ -4052,7 +4063,7 @@ define Device/zyxel_wx5600-t0-ubootmod
   DEVICE_DTS_DIR := ../dts
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7986-firmware mt7986-wo-firmware
   KERNEL_INITRAMFS_SUFFIX := -recovery.itb
-  IMAGES := sysupgrade.itb
+  IMAGES := sysupgrade.itb sysupgrade.bin
   BLOCKSIZE := 256k
   PAGESIZE := 4096
   KERNEL_IN_UBI := 1
