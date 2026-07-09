@@ -2,8 +2,7 @@ name: Build TR3000
 on:
   workflow_dispatch:
   push:
-    paths-ignore:
-      - 'README.md'
+    paths-ignore: ['README.md']
 
 jobs:
   build:
@@ -11,86 +10,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # === 缓存层 ===
-      - name: Restore ccache
+      - name: Restore caches
         uses: actions/cache/restore@v4
         with:
-          path: .ccache
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('.github/seed.config') }}
-          restore-keys: |
-            ccache-${{ runner.os }}-${{ github.ref_name }}-
-            ccache-${{ runner.os }}-
+          path: |
+            .ccache
+            dl
+            staging_dir
+            build_dir
+          key: full-cache-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
+          restore-keys: full-cache-${{ runner.os }}-
 
-      - name: Restore dl cache
-        uses: actions/cache/restore@v4
-        with:
-          path: dl
-          key: dl-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
-          restore-keys: dl-${{ runner.os }}-
-
-      - name: Restore toolchain cache
-        uses: actions/cache/restore@v4
-        with:
-          path: staging_dir
-          key: toolchain-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
-          restore-keys: toolchain-${{ runner.os }}-
-
-      - name: Restore build cache
-        uses: actions/cache/restore@v4
-        with:
-          path: build_dir
-          key: build-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
-          restore-keys: build-${{ runner.os }}-
+      - name: Download pre-built toolchain
+        if: steps.restore-caches.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p staging_dir
+          wget -q -O /tmp/tc.tar.zst \
+            https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          tar -I zstd -xf /tmp/tc.tar.zst -C staging_dir/ --strip-components=1
+          rm /tmp/tc.tar.zst
+          echo "Pre-built toolchain installed to staging_dir"
 
       - name: Install deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip zlib1g-dev file wget python3
+          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip zlib1g-dev file wget python3 zstd
 
       - name: Add custom files
         run: |
           mkdir -p files/etc/init.d files/etc/uci-defaults
-          cat > files/etc/sysctl.conf << 'EOF'
-          net.ipv4.tcp_slow_start_after_idle=0
-          net.core.netdev_budget=600
-          net.ipv4.tcp_rmem=4096 131072 6291456
-          net.ipv4.tcp_wmem=4096 131072 6291456
-          net.core.rmem_max=4194304
-          net.core.wmem_max=2097152
-          net.netfilter.nf_conntrack_max=65536
-          net.netfilter.nf_conntrack_tcp_timeout_established=1800
-          net.ipv4.tcp_congestion_control=bbr
-          net.core.default_qdisc=fq_codel
-          net.ipv4.tcp_tw_reuse=1
-          net.ipv4.tcp_keepalive_time=120
-          net.ipv4.tcp_keepalive_intvl=30
-          net.ipv4.tcp_keepalive_probes=3
-          net.netfilter.nf_conntrack_udp_timeout_stream=120
-          EOF
-          cat > files/etc/firewall.user << 'EOF'
+          echo 'net.ipv4.tcp_congestion_control=bbr' > files/etc/sysctl.conf
+          echo 'net.core.default_qdisc=fq_codel' >> files/etc/sysctl.conf
+          echo 'net.netfilter.nf_conntrack_max=65536' >> files/etc/sysctl.conf
+          echo 'net.ipv4.tcp_keepalive_time=120' >> files/etc/sysctl.conf
+          echo 'net.ipv4.tcp_tw_reuse=1' >> files/etc/sysctl.conf
+          cat > files/etc/firewall.user << 'FEOF'
           iptables -F FORWARD
           iptables -t nat -F POSTROUTING
           iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
           iptables -A FORWARD -i br-lan -o eth0 -j ACCEPT
           iptables -A FORWARD -i eth0 -o br-lan -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-          iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-          EOF
-          cat > files/etc/init.d/nat-fix << 'EOF'
+          FEOF
+          cat > files/etc/init.d/nat-fix << 'IEOF'
           #!/bin/sh /etc/rc.common
           START=10
           start() { /etc/firewall.user; }
-          boot() { /etc/firewall.user; }
-          EOF
+          boot()  { /etc/firewall.user; }
+          IEOF
           chmod +x files/etc/init.d/nat-fix
-          cat > files/etc/uci-defaults/99-custom.sh << 'EOF'
+          cat > files/etc/uci-defaults/99-custom.sh << 'UEOF'
           #!/bin/sh
           chmod +x /etc/init.d/nat-fix
-          [ -x /etc/init.d/nat-fix ] && /etc/init.d/nat-fix enable
+          /etc/init.d/nat-fix enable
           [ -x /etc/init.d/firewall ] && /etc/init.d/firewall enable
-          echo 65536 > /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null
-          ln -sf /etc/init.d/nat-fix /etc/rc.d/S10nat-fix 2>/dev/null
           exit 0
-          EOF
+          UEOF
           chmod +x files/etc/uci-defaults/99-custom.sh
 
       - name: Update feeds
@@ -109,35 +83,21 @@ jobs:
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Pack
-        run: |
-          mkdir -p /tmp/out
-          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null || true
-
-      # === 保存缓存 ===
-      - name: Save ccache
+      - name: Save cache
         uses: actions/cache/save@v4
         with:
-          path: .ccache
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('.github/seed.config') }}
-
-      - name: Save toolchain cache
-        uses: actions/cache/save@v4
-        with:
-          path: staging_dir
-          key: toolchain-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
-
-      - name: Save build cache
-        uses: actions/cache/save@v4
-        with:
-          path: build_dir
-          key: build-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
+          path: |
+            .ccache
+            dl
+            staging_dir
+            build_dir
+          key: full-cache-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tr3000-firmware
-          path: /tmp/out/*
+          path: bin/targets/mediatek/filogic/*sysupgrade*
 
       - name: Release
         uses: softprops/action-gh-release@v3
@@ -145,5 +105,5 @@ jobs:
         with:
           tag_name: tr3000-autobuild
           name: TR3000 AutoBuild
-          files: /tmp/out/*
+          files: bin/targets/mediatek/filogic/*sysupgrade*
           token: ${{ secrets.GITHUB_TOKEN }}
