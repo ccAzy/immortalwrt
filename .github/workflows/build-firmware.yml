@@ -32,6 +32,56 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip zlib1g-dev file wget python3
 
+      - name: Add custom files
+        run: |
+          mkdir -p files/etc/init.d files/etc/uci-defaults
+          # sysctl 优化
+          cat > files/etc/sysctl.conf << 'EOF'
+          net.ipv4.tcp_slow_start_after_idle=0
+          net.core.netdev_budget=600
+          net.ipv4.tcp_rmem=4096 131072 6291456
+          net.ipv4.tcp_wmem=4096 131072 6291456
+          net.core.rmem_max=4194304
+          net.core.wmem_max=2097152
+          net.netfilter.nf_conntrack_max=65536
+          net.netfilter.nf_conntrack_tcp_timeout_established=1800
+          net.ipv4.tcp_congestion_control=bbr
+          net.core.default_qdisc=fq_codel
+          net.ipv4.tcp_tw_reuse=1
+          net.ipv4.tcp_keepalive_time=120
+          net.ipv4.tcp_keepalive_intvl=30
+          net.ipv4.tcp_keepalive_probes=3
+          net.netfilter.nf_conntrack_udp_timeout_stream=120
+          EOF
+          # 防火墙应急
+          cat > files/etc/firewall.user << 'EOF'
+          iptables -F FORWARD
+          iptables -t nat -F POSTROUTING
+          iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+          iptables -A FORWARD -i br-lan -o eth0 -j ACCEPT
+          iptables -A FORWARD -i eth0 -o br-lan -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+          iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+          EOF
+          # nat-fix 自启脚本
+          cat > files/etc/init.d/nat-fix << 'EOF'
+          #!/bin/sh /etc/rc.common
+          START=10
+          start() { /etc/firewall.user; }
+          boot() { /etc/firewall.user; }
+          EOF
+          chmod +x files/etc/init.d/nat-fix
+          # 首次启动
+          cat > files/etc/uci-defaults/99-custom.sh << 'EOF'
+          #!/bin/sh
+          chmod +x /etc/init.d/nat-fix
+          [ -x /etc/init.d/nat-fix ] && /etc/init.d/nat-fix enable
+          [ -x /etc/init.d/firewall ] && /etc/init.d/firewall enable
+          echo 65536 > /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null
+          ln -sf /etc/init.d/nat-fix /etc/rc.d/S10nat-fix 2>/dev/null
+          exit 0
+          EOF
+          chmod +x files/etc/uci-defaults/99-custom.sh
+
       - name: Update feeds
         run: |
           ./scripts/feeds update -a
@@ -48,25 +98,30 @@ jobs:
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Debug - list all firmware files
+      - name: Pack and rename
+        id: pack
         run: |
-          echo "=== All generated files ==="
-          ls -la bin/targets/mediatek/filogic/
-          echo ""
-          echo "=== sysupgrade files ==="
-          ls -la bin/targets/mediatek/filogic/*sysupgrade* 2>/dev/null || echo "NO sysupgrade files found!"
-          echo ""
-          echo "=== ITB files ==="
-          ls -la bin/targets/mediatek/filogic/*.itb 2>/dev/null || echo "NO itb files!"
-          echo ""
-          echo "=== BIN files ==="
-          ls -la bin/targets/mediatek/filogic/*.bin 2>/dev/null || echo "NO bin files!"
-          echo ""
-          echo "=== File types ==="
-          file bin/targets/mediatek/filogic/*sysupgrade* 2>/dev/null || echo "No sysupgrade files to check"
+          TIMESTAMP=$(date +%Y%m%d-%H%M)
+          cd bin/targets/mediatek/filogic/
+          for f in *sysupgrade* *preloader* *bl31-uboot*; do
+            [ -f "$f" ] && cp "$f" /tmp/ || true
+          done
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
 
-      - name: Upload
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tr3000-firmware
           path: bin/targets/mediatek/filogic/*sysupgrade*
+
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        if: success()
+        with:
+          tag_name: tr3000-autobuild
+          name: TR3000 ImmortalWrt - ${{ steps.pack.outputs.timestamp }}
+          files: |
+            /tmp/*sysupgrade*
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
