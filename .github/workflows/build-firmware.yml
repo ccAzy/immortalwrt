@@ -11,21 +11,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # === 缓存层 ===
       - name: Restore ccache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .ccache
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('.github/seed.config') }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ github.ref_name }}-
             ccache-${{ runner.os }}-
 
       - name: Restore dl cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: dl
           key: dl-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
           restore-keys: dl-${{ runner.os }}-
+
+      - name: Restore toolchain cache
+        uses: actions/cache/restore@v4
+        with:
+          path: staging_dir
+          key: toolchain-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
+          restore-keys: toolchain-${{ runner.os }}-
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build_dir
+          key: build-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
+          restore-keys: build-${{ runner.os }}-
 
       - name: Install deps
         run: |
@@ -35,7 +50,6 @@ jobs:
       - name: Add custom files
         run: |
           mkdir -p files/etc/init.d files/etc/uci-defaults
-          # sysctl 优化
           cat > files/etc/sysctl.conf << 'EOF'
           net.ipv4.tcp_slow_start_after_idle=0
           net.core.netdev_budget=600
@@ -53,7 +67,6 @@ jobs:
           net.ipv4.tcp_keepalive_probes=3
           net.netfilter.nf_conntrack_udp_timeout_stream=120
           EOF
-          # 防火墙应急
           cat > files/etc/firewall.user << 'EOF'
           iptables -F FORWARD
           iptables -t nat -F POSTROUTING
@@ -62,7 +75,6 @@ jobs:
           iptables -A FORWARD -i eth0 -o br-lan -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
           iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
           EOF
-          # nat-fix 自启脚本
           cat > files/etc/init.d/nat-fix << 'EOF'
           #!/bin/sh /etc/rc.common
           START=10
@@ -70,7 +82,6 @@ jobs:
           boot() { /etc/firewall.user; }
           EOF
           chmod +x files/etc/init.d/nat-fix
-          # 首次启动
           cat > files/etc/uci-defaults/99-custom.sh << 'EOF'
           #!/bin/sh
           chmod +x /etc/init.d/nat-fix
@@ -98,30 +109,41 @@ jobs:
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Pack and rename
-        id: pack
+      - name: Pack
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M)
-          cd bin/targets/mediatek/filogic/
-          for f in *sysupgrade* *preloader* *bl31-uboot*; do
-            [ -f "$f" ] && cp "$f" /tmp/ || true
-          done
-          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          mkdir -p /tmp/out
+          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null || true
+
+      # === 保存缓存 ===
+      - name: Save ccache
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('.github/seed.config') }}
+
+      - name: Save toolchain cache
+        uses: actions/cache/save@v4
+        with:
+          path: staging_dir
+          key: toolchain-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
+
+      - name: Save build cache
+        uses: actions/cache/save@v4
+        with:
+          path: build_dir
+          key: build-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tr3000-firmware
-          path: bin/targets/mediatek/filogic/*sysupgrade*
+          path: /tmp/out/*
 
       - name: Release
         uses: softprops/action-gh-release@v3
         if: success()
         with:
           tag_name: tr3000-autobuild
-          name: TR3000 ImmortalWrt - ${{ steps.pack.outputs.timestamp }}
-          files: |
-            /tmp/*sysupgrade*
+          name: TR3000 AutoBuild
+          files: /tmp/out/*
           token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
