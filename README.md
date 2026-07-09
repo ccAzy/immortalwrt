@@ -1,44 +1,60 @@
 # Cudy TR3000 专属定制固件
 
-基于 [ImmortalWrt](https://github.com/immortalwrt/immortalwrt)，为 **Cudy TR3000 v1 (ubootmod)** 定制的固件。
+基于 [ImmortalWrt](https://github.com/immortalwrt/immortalwrt) 源码编译，为 **Cudy TR3000 v1 (ubootmod)** 定制。
 
-## 特性
+## 一键编译
+
+```
+Actions → Build TR3000 → Run workflow → 等 1.5~2h → Release 下载
+```
+
+首次全量编译，后续缓存命中 < 2 分钟。
+
+## 预装包
 
 | 类别 | 内容 |
-|------|------|
-| **代理** | daed (XDP/eBPF 透明代理) |
-| **加速** | TurboACC + MediaTek HNAT + Fullcone NAT + BBRv3 |
-| **WiFi** | MT7981 驱动 + 硬件加速 |
-| **NAS** | ksmbd SMB 共享 + F2FS/exFAT/ext4/NTFS 支持 |
-| **工具** | bash / curl / tcpdump / tcping / htop / nano |
-| **监控** | wrtbwmon / bandix 流量监控 |
-| **DNS** | dnsmasq-full |
-| **其他** | UPnP / TTYD / Conntrack / Argon + Aurora 双主题 |
+|---|---|
+| **代理** | OpenClash + dns2socks + chinadns-ng + ipt2socks |
+| **去广告** | AdGuard Home |
+| **加速** | BBR + Fullcone NAT + HNAT 硬件加速 + TCP Fastopen |
+| **WiFi** | mtwifi 专有驱动 (HE160 待验证) |
+| **NAS** | ksmbd SMB + wsdd2 + exFAT/NTFS/ext4 |
+| **监控** | bandix 流量监控 |
+| **网络** | iperf3 / mtr-json / tcpdump / tcping |
+| **DDNS** | luci-app-ddns |
+| **远程** | WOL 网络唤醒 |
+| **工具** | bash / curl / htop / nano / wget-ssl |
+| **界面** | Argon 主题 + Aurora 主题 |
+| **其他** | UPnP / ttyd / conntrack |
 
-## 内核
+## 自定义配置
 
-```
-CONFIG_XDP_SOCKETS=y
-CONFIG_XDP_SOCKETS_DIAG=y
-CONFIG_NET_SCH_BPF=y
-CONFIG_BPF_JIT_ALWAYS_ON=y
-CONFIG_DEBUG_INFO_BTF=y
-```
+刷机后自动生效（无需手动操作）：
 
-## 编译
+| 配置 | 说明 |
+|---|---|
+| 默认 IP | 192.168.6.1 |
+| sysctl | BBR + conntrack=65536 + keepalive=120s |
+| 防火墙 | WAN REJECT + nat-fix 自启 |
+| OpenClash 守护 | 每次重载后自动修复优化项 |
+| AdGuard | safebrowsing 关 + overlay 持久化 |
 
-GitHub Actions 自动编译，push 即触发。
+## 产出格式
 
-## 下载
+- `*ubootmod-squashfs-sysupgrade.itb` — ubootmod 分区
+- `*v1-squashfs-sysupgrade.bin` — 原厂分区
 
-前往 [Actions](https://github.com/ccAzy/immortalwrt/actions) → 选最新的成功运行 → 下载 `tr3000-firmware` artifact。
+## 相关项目
 
-## 刷入
+| 项目 | 说明 |
+|---|---|
+| [ImageBuilder](https://github.com/ccAzy/ImmortalWrt-ImageBuilder) | 快速打包（5min），但不能源码定制 |
+| [U-Boot](https://github.com/ccAzy/bl-mt798x-dhcpd) | DHCP Web 救砖 |
 
-LuCI → 系统 → 备份/升级 → 刷写固件 → **不保留配置**。
+## 更新日志
 
-## 来源
-
-合并自两个社区固件，取长补短：
-- 恩山237大佬（内核 XDP + ksmbd + argon 主题）
-- 旧大佬固件（bash/curl/UPnP/wrtbwmon/conntrack 等完整工具链）
+| 日期 | 内容 |
+|---|---|
+| 2026-07-10 | OpenClash+AdGuard+Fullcone+BBR自启+IPv6+DNS链路完整优化 |
+| 2026-07-09 | 四层缓存+预编译toolchain+BBRv3种子加入 |
+| 2026-07-08 | passwall→OpenClash 替换, 增强包加入 |
