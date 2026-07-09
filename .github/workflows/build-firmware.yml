@@ -10,25 +10,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # === 下载预编译缓存（从 Release）===
       - name: Download build cache
         run: |
           mkdir -p staging_dir build_dir .ccache
           CACHE_URL="https://github.com/ccAzy/immortalwrt/releases/download/tr3000-cache/immortalwrt-build-cache.tar.zst"
           if curl -sIf "$CACHE_URL" | grep -q "302"; then
-            echo "Found cache release, downloading..."
+            echo "Cache found, downloading..."
             cd /
             wget -q -O /tmp/cache.tar.zst "$CACHE_URL"
             tar -I zstd -xf /tmp/cache.tar.zst -C "$GITHUB_WORKSPACE/"
             rm /tmp/cache.tar.zst
-            echo "Cache extracted"
           else
-            echo "No cache release found, downloading toolchain"
+            echo "No cache, downloading toolchain"
+            mkdir -p staging_dir
             wget -q -O /tmp/tc.tar.zst \
               https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
             tar -I zstd -xf /tmp/tc.tar.zst -C staging_dir/ --strip-components=1
             rm /tmp/tc.tar.zst
-            echo "Toolchain from official"
           fi
 
       - name: Install deps
@@ -80,14 +78,26 @@ jobs:
       - name: Download sources
         run: make -j$(nproc) download V=s
 
-      - name: Compile
+      - name: Compile (shared build_dir)
         run: make -j$(nproc) V=s || make -j1 V=s
+
+      - name: Build both formats
+        run: |
+          mkdir -p /tmp/out
+          echo "=== ubootmod .itb ==="
+          make image PROFILE=cudy_tr3000-v1-ubootmod PACKAGES=""
+          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/
+          echo "=== stock .bin ==="
+          make image PROFILE=cudy_tr3000-v1 PACKAGES=""
+          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/
+          echo "=== Done ==="
+          ls -lh /tmp/out/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tr3000-firmware
-          path: bin/targets/mediatek/filogic/*sysupgrade*
+          path: /tmp/out/*
 
       - name: Release firmware
         uses: softprops/action-gh-release@v3
@@ -95,19 +105,17 @@ jobs:
         with:
           tag_name: tr3000-autobuild
           name: TR3000 AutoBuild
-          files: bin/targets/mediatek/filogic/*sysupgrade*
+          files: /tmp/out/*
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # === 上传编译缓存到 Release（下次编译直接用）===
       - name: Pack and upload build cache
         run: |
           cd /
           tar -I zstd -cf /tmp/cache.tar.zst \
-            --exclude='*.git' --exclude='tmp' \
+            --exclude='tmp' \
             -C "$GITHUB_WORKSPACE" staging_dir build_dir dl .ccache
-          SIZE=$(ls -lh /tmp/cache.tar.zst | awk '{print $5}')
-          echo "Cache size: $SIZE"
-          echo "CACHE_SIZE=$SIZE" >> $GITHUB_ENV
+          SIZE=$(du -sh /tmp/cache.tar.zst | cut -f1)
+          echo "Cache: $SIZE"
 
       - name: Update cache release
         uses: softprops/action-gh-release@v3
@@ -115,6 +123,6 @@ jobs:
         with:
           tag_name: tr3000-cache
           name: TR3000 Build Cache
-          body: Compressed build cache (${{ env.CACHE_SIZE }})
+          body: "Build cache (BBRv3+XDP+Fullcone)"
           files: /tmp/cache.tar.zst
           token: ${{ secrets.GITHUB_TOKEN }}
