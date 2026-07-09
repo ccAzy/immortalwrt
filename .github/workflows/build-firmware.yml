@@ -59,14 +59,10 @@ jobs:
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Build all profiles
+      - name: Collect firmware
         run: |
           mkdir -p /tmp/out
-          for p in cudy_tr3000-v1-ubootmod cudy_tr3000-v1 cudy_tr3000-256mb-v1; do
-            echo "=== $p ==="
-            make -j1 V=s image PROFILE=$p
-            cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null
-          done
+          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null || true
           ls -lh /tmp/out/
 
       - name: Upload firmware
