@@ -1,18 +1,19 @@
 #!/bin/bash
-# TR3000 自定义包源
+# TR3000 定制: 默认IP + Argon主题
+echo "diy-part2: 定制中..."
 
-function git_sparse_clone() {
-  branch="$1" repourl="$2" && shift 2
-  git clone --depth=1 -b $branch --single-branch --filter=blob:none --sparse $repourl
-  repodir=$(echo $repourl | awk -F '/' '{print $(NF)}')
-  cd $repodir && git sparse-checkout set $@
-  mv -f $@ ../package
-  cd .. && rm -rf $repodir
-}
+# 默认IP 192.168.6.1 (不上报失败)
+sed -i 's/192.168.1.1/192.168.6.1/g' package/base-files/files/bin/config_generate 2>/dev/null || true
+echo "  IP set to 192.168.6.1"
 
-# Aurora 主题
-rm -rf feeds/luci/themes/luci-theme-argon
-git_sparse_clone master https://github.com/sbwml/luci-theme-argon luci-theme-argon
+# Argon主题 (网络失败不阻塞)
+if git clone --depth=1 https://github.com/sbwml/luci-theme-argon.git /tmp/argon 2>/dev/null; then
+  rm -rf feeds/luci/themes/luci-theme-argon 2>/dev/null
+  cp -r /tmp/argon/luci-theme-argon feeds/luci/themes/ 2>/dev/null || true
+  rm -rf /tmp/argon
+  echo "  Argon theme updated"
+else
+  echo "  Argon theme skipped (network)"
+fi
 
-# 默认IP 192.168.6.1
-sed -i 's/192.168.1.1/192.168.6.1/g' package/base-files/files/bin/config_generate
+echo "diy-part2: done"
