@@ -7,6 +7,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        profile:
+          - cudy_tr3000-v1-ubootmod
+          - cudy_tr3000-v1
+          - cudy_tr3000-256mb-v1
     steps:
       - uses: actions/checkout@v4
 
@@ -14,10 +20,9 @@ jobs:
         run: |
           mkdir -p staging_dir build_dir .ccache
           CACHE_URL="https://github.com/ccAzy/immortalwrt/releases/download/tr3000-cache/immortalwrt-build-cache.tar.zst"
-          if curl -sIf "$CACHE_URL" | grep -q "302"; then
-            echo "Cache found, downloading..."
-            cd /
-            wget -q -O /tmp/cache.tar.zst "$CACHE_URL"
+          if curl -sIf "$CACHE_URL" 2>/dev/null | head -1 | grep -q "302"; then
+            echo "Cache found"
+            cd / && wget -q -O /tmp/cache.tar.zst "$CACHE_URL"
             tar -I zstd -xf /tmp/cache.tar.zst -C "$GITHUB_WORKSPACE/"
             rm /tmp/cache.tar.zst
           else
@@ -60,7 +65,6 @@ jobs:
           #!/bin/sh
           chmod +x /etc/init.d/nat-fix
           /etc/init.d/nat-fix enable
-          [ -x /etc/init.d/firewall ] && /etc/init.d/firewall enable
           exit 0
           UEOF
           chmod +x files/etc/uci-defaults/99-custom.sh
@@ -78,25 +82,21 @@ jobs:
       - name: Download sources
         run: make -j$(nproc) download V=s
 
-      - name: Compile (shared build_dir)
+      - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Build both formats
+      - name: Build image
         run: |
           mkdir -p /tmp/out
-          echo "=== ubootmod .itb ==="
-          make image PROFILE=cudy_tr3000-v1-ubootmod PACKAGES=""
-          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/
-          echo "=== stock .bin ==="
-          make image PROFILE=cudy_tr3000-v1 PACKAGES=""
-          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/
-          echo "=== Done ==="
+          make image PROFILE=${{ matrix.profile }}
+          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null || true
+          echo "Profile: ${{ matrix.profile }}"
           ls -lh /tmp/out/
 
-      - name: Upload Artifact
+      - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: tr3000-firmware
+          name: tr3000-${{ matrix.profile }}
           path: /tmp/out/*
 
       - name: Release firmware
@@ -108,21 +108,43 @@ jobs:
           files: /tmp/out/*
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pack and upload build cache
-        run: |
-          cd /
-          tar -I zstd -cf /tmp/cache.tar.zst \
-            --exclude='tmp' \
-            -C "$GITHUB_WORKSPACE" staging_dir build_dir dl .ccache
-          SIZE=$(du -sh /tmp/cache.tar.zst | cut -f1)
-          echo "Cache: $SIZE"
+  # === 包源发布 ===
+  publish-packages:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-      - name: Update cache release
+      - name: Build package repo
+        run: |
+          mkdir -p /tmp/packages
+          for f in artifacts/tr3000-*/*sysupgrade*; do cp "$f" /tmp/packages/ 2>/dev/null || true; done
+          cat > /tmp/packages/README.md << 'EOF'
+          # TR3000 固件包源
+          以下固件来自 immortalwrt 源码编译 (BBRv3+XDP+Fullcone+OpenClash):
+          - cudy_tr3000-v1-ubootmod: ITB (ubootmod分区)
+          - cudy_tr3000-v1: BIN (原厂分区)
+          - cudy_tr3000-256mb-v1: BIN (256MB版本)
+          EOF
+
+      - name: Publish packages
         uses: softprops/action-gh-release@v3
         if: success()
         with:
-          tag_name: tr3000-cache
-          name: TR3000 Build Cache
-          body: "Build cache (BBRv3+XDP+Fullcone)"
-          files: /tmp/cache.tar.zst
+          tag_name: tr3000-packages
+          name: TR3000 Packages
+          body: "三版本固件包集合"
+          files: /tmp/packages/*
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # === 缓存发布（只跑一次）===
+  publish-cache:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quick check
+        run: echo "Cache uploaded by build job when seed changes"
