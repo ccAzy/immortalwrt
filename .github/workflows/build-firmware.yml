@@ -101,7 +101,7 @@ jobs:
 
 
       - name: Compile (with compression)
-        run: SQUASHFSOPT="-b 256k -comp xz -Xbcj arm -noappend" make -j$(nproc) V=s || make -j1 V=s
+        run: make -j$(nproc) V=s SQUASHFSOPT="-b 256k -comp xz -Xbcj arm -noappend" || make -j1 V=s
 
       - name: Setup tmate (debug on failure)
         if: failure()
