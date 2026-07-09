@@ -10,26 +10,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore caches
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            .ccache
-            dl
-            staging_dir
-            build_dir
-          key: full-cache-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
-          restore-keys: full-cache-${{ runner.os }}-
-
-      - name: Download pre-built toolchain
-        if: steps.restore-caches.outputs.cache-hit != 'true'
+      # === 下载预编译缓存（从 Release）===
+      - name: Download build cache
         run: |
-          mkdir -p staging_dir
-          wget -q -O /tmp/tc.tar.zst \
-            https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-          tar -I zstd -xf /tmp/tc.tar.zst -C staging_dir/ --strip-components=1
-          rm /tmp/tc.tar.zst
-          echo "Pre-built toolchain installed to staging_dir"
+          mkdir -p staging_dir build_dir .ccache
+          CACHE_URL="https://github.com/ccAzy/immortalwrt/releases/download/tr3000-cache/immortalwrt-build-cache.tar.zst"
+          if curl -sIf "$CACHE_URL" | grep -q "302"; then
+            echo "Found cache release, downloading..."
+            cd /
+            wget -q -O /tmp/cache.tar.zst "$CACHE_URL"
+            tar -I zstd -xf /tmp/cache.tar.zst -C "$GITHUB_WORKSPACE/"
+            rm /tmp/cache.tar.zst
+            echo "Cache extracted"
+          else
+            echo "No cache release found, downloading toolchain"
+            wget -q -O /tmp/tc.tar.zst \
+              https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+            tar -I zstd -xf /tmp/tc.tar.zst -C staging_dir/ --strip-components=1
+            rm /tmp/tc.tar.zst
+            echo "Toolchain from official"
+          fi
 
       - name: Install deps
         run: |
@@ -83,27 +83,38 @@ jobs:
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Save cache
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            .ccache
-            dl
-            staging_dir
-            build_dir
-          key: full-cache-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
-
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tr3000-firmware
           path: bin/targets/mediatek/filogic/*sysupgrade*
 
-      - name: Release
+      - name: Release firmware
         uses: softprops/action-gh-release@v3
         if: success()
         with:
           tag_name: tr3000-autobuild
           name: TR3000 AutoBuild
           files: bin/targets/mediatek/filogic/*sysupgrade*
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # === 上传编译缓存到 Release（下次编译直接用）===
+      - name: Pack and upload build cache
+        run: |
+          cd /
+          tar -I zstd -cf /tmp/cache.tar.zst \
+            --exclude='*.git' --exclude='tmp' \
+            -C "$GITHUB_WORKSPACE" staging_dir build_dir dl .ccache
+          SIZE=$(ls -lh /tmp/cache.tar.zst | awk '{print $5}')
+          echo "Cache size: $SIZE"
+          echo "CACHE_SIZE=$SIZE" >> $GITHUB_ENV
+
+      - name: Update cache release
+        uses: softprops/action-gh-release@v3
+        if: success()
+        with:
+          tag_name: tr3000-cache
+          name: TR3000 Build Cache
+          body: Compressed build cache (${{ env.CACHE_SIZE }})
+          files: /tmp/cache.tar.zst
           token: ${{ secrets.GITHUB_TOKEN }}
