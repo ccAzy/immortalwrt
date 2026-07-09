@@ -99,13 +99,15 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc 2>/dev/null
           df -h
 
-      - name: Compile
-        run: make -j$(nproc) V=s || make -j1 V=s
+
+      - name: Compile (with compression)
+        run: SQUASHFSOPT="-b 256k -comp xz -Xbcj arm -noappend" make -j$(nproc) V=s || make -j1 V=s
 
       - name: Setup tmate (debug on failure)
         if: failure()
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 30
+
 
       - name: Collect firmware
         run: |
