@@ -64,7 +64,7 @@ jobs:
           mkdir -p /tmp/out
           for p in cudy_tr3000-v1-ubootmod cudy_tr3000-v1 cudy_tr3000-256mb-v1; do
             echo "=== $p ==="
-            make image PROFILE=$p
+            make -j1 V=s image PROFILE=$p
             cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null
           done
           ls -lh /tmp/out/
