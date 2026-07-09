@@ -7,12 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        profile:
-          - cudy_tr3000-v1-ubootmod
-          - cudy_tr3000-v1
-          - cudy_tr3000-256mb-v1
     steps:
       - uses: actions/checkout@v4
 
@@ -21,23 +15,18 @@ jobs:
           mkdir -p staging_dir build_dir .ccache
           CACHE_URL="https://github.com/ccAzy/immortalwrt/releases/download/tr3000-cache/immortalwrt-build-cache.tar.zst"
           if curl -sIf "$CACHE_URL" 2>/dev/null | head -1 | grep -q "302"; then
-            echo "Cache found"
             cd / && wget -q -O /tmp/cache.tar.zst "$CACHE_URL"
             tar -I zstd -xf /tmp/cache.tar.zst -C "$GITHUB_WORKSPACE/"
-            rm /tmp/cache.tar.zst
+            rm /tmp/cache.tar.zst && echo "Cache loaded"
           else
-            echo "No cache, downloading toolchain"
             mkdir -p staging_dir
-            wget -q -O /tmp/tc.tar.zst \
-              https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+            wget -q -O /tmp/tc.tar.zst https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
             tar -I zstd -xf /tmp/tc.tar.zst -C staging_dir/ --strip-components=1
-            rm /tmp/tc.tar.zst
+            rm /tmp/tc.tar.zst && echo "Toolchain loaded"
           fi
 
       - name: Install deps
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip zlib1g-dev file wget python3 zstd
+        run: sudo apt-get update -qq && sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip zlib1g-dev file wget python3 zstd
 
       - name: Add custom files
         run: |
@@ -48,36 +37,21 @@ jobs:
           echo 'net.ipv4.tcp_keepalive_time=120' >> files/etc/sysctl.conf
           echo 'net.ipv4.tcp_tw_reuse=1' >> files/etc/sysctl.conf
           cat > files/etc/firewall.user << 'FEOF'
-          iptables -F FORWARD
-          iptables -t nat -F POSTROUTING
+          iptables -F FORWARD; iptables -t nat -F POSTROUTING
           iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
           iptables -A FORWARD -i br-lan -o eth0 -j ACCEPT
           iptables -A FORWARD -i eth0 -o br-lan -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
           FEOF
-          cat > files/etc/init.d/nat-fix << 'IEOF'
-          #!/bin/sh /etc/rc.common
-          START=10
-          start() { /etc/firewall.user; }
-          boot()  { /etc/firewall.user; }
-          IEOF
+          printf '#!/bin/sh /etc/rc.common\nSTART=10\nstart() { /etc/firewall.user; }\nboot()  { /etc/firewall.user; }\n' > files/etc/init.d/nat-fix
           chmod +x files/etc/init.d/nat-fix
-          cat > files/etc/uci-defaults/99-custom.sh << 'UEOF'
-          #!/bin/sh
-          chmod +x /etc/init.d/nat-fix
-          /etc/init.d/nat-fix enable
-          exit 0
-          UEOF
+          printf '#!/bin/sh\nchmod +x /etc/init.d/nat-fix\n/etc/init.d/nat-fix enable\nexit 0\n' > files/etc/uci-defaults/99-custom.sh
           chmod +x files/etc/uci-defaults/99-custom.sh
 
       - name: Update feeds
-        run: |
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+        run: ./scripts/feeds update -a && ./scripts/feeds install -a
 
       - name: Gen config
-        run: |
-          cp .github/seed.config .config
-          make defconfig
+        run: cp .github/seed.config .config && make defconfig
 
       - name: Download sources
         run: make -j$(nproc) download V=s
@@ -85,18 +59,20 @@ jobs:
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Build image
+      - name: Build all profiles
         run: |
           mkdir -p /tmp/out
-          make image PROFILE=${{ matrix.profile }}
-          cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null || true
-          echo "Profile: ${{ matrix.profile }}"
+          for p in cudy_tr3000-v1-ubootmod cudy_tr3000-v1 cudy_tr3000-256mb-v1; do
+            echo "=== $p ==="
+            make image PROFILE=$p
+            cp bin/targets/mediatek/filogic/*sysupgrade* /tmp/out/ 2>/dev/null
+          done
           ls -lh /tmp/out/
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: tr3000-${{ matrix.profile }}
+          name: tr3000-all-firmware
           path: /tmp/out/*
 
       - name: Release firmware
@@ -104,47 +80,21 @@ jobs:
         if: success()
         with:
           tag_name: tr3000-autobuild
-          name: TR3000 AutoBuild
+          name: TR3000 AutoBuild (BBRv3+XDP+Fullcone+OpenClash)
           files: /tmp/out/*
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # === 包源发布 ===
-  publish-packages:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Build package repo
+      - name: Pack cache
         run: |
-          mkdir -p /tmp/packages
-          for f in artifacts/tr3000-*/*sysupgrade*; do cp "$f" /tmp/packages/ 2>/dev/null || true; done
-          cat > /tmp/packages/README.md << 'EOF'
-          # TR3000 固件包源
-          以下固件来自 immortalwrt 源码编译 (BBRv3+XDP+Fullcone+OpenClash):
-          - cudy_tr3000-v1-ubootmod: ITB (ubootmod分区)
-          - cudy_tr3000-v1: BIN (原厂分区)
-          - cudy_tr3000-256mb-v1: BIN (256MB版本)
-          EOF
+          cd / && tar -I zstd -cf /tmp/cache.tar.zst --exclude='tmp' -C "$GITHUB_WORKSPACE" staging_dir build_dir dl .ccache
+          echo "Cache: $(du -sh /tmp/cache.tar.zst | cut -f1)"
 
-      - name: Publish packages
+      - name: Upload cache release
         uses: softprops/action-gh-release@v3
         if: success()
         with:
-          tag_name: tr3000-packages
-          name: TR3000 Packages
-          body: "三版本固件包集合"
-          files: /tmp/packages/*
+          tag_name: tr3000-cache
+          name: TR3000 Build Cache
+          body: "BBRv3+XDP+Fullcone+OpenClash 编译缓存"
+          files: /tmp/cache.tar.zst
           token: ${{ secrets.GITHUB_TOKEN }}
-
-  # === 缓存发布（只跑一次）===
-  publish-cache:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Quick check
-        run: echo "Cache uploaded by build job when seed changes"
