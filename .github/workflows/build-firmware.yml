@@ -93,6 +93,9 @@ jobs:
       - name: Download sources
         run: make -j$(nproc) download V=s
 
+      - name: Check disk space
+        run: df -h
+
       - name: Compile
         run: make -j$(nproc) V=s || make -j1 V=s
 
