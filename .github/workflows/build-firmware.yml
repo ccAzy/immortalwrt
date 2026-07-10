@@ -54,4 +54,4 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         if: success()
-        with: {tag_name: tr3000-autobuild, name: TR3000, files: /tmp/out/*}
+        with: {tag_name: tr3000-padavanonly, name: TR3000, files: /tmp/out/*}
