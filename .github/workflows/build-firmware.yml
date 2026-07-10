@@ -55,6 +55,9 @@ jobs:
           echo "net.ipv4.tcp_tw_reuse=1" >> files/etc/sysctl.conf
           echo "net.ipv4.tcp_fastopen=3" >> files/etc/sysctl.conf
 
+      - name: Fix permissions
+        run: chmod +x scripts/feeds scripts/*.sh 2>/dev/null; find . -name "*.sh" -exec chmod +x {} + 2>/dev/null; echo OK
+
       - name: Update feeds
         run: ./scripts/feeds update -a && ./scripts/feeds install -a
 
