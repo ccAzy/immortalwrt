@@ -41,6 +41,8 @@ jobs:
         run: |
           cd /tmp/src
           cp defconfig/mt7981-ax3000.config .config
+          # 只保留TR3000设备
+          grep -v "CONFIG_TARGET.*_DEVICE_" .config > .config.tmp; echo "CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y" >> .config.tmp; mv .config.tmp .config
           ./scripts/feeds update -a && ./scripts/feeds install -a
           make defconfig
           make -j$(nproc) download V=s
