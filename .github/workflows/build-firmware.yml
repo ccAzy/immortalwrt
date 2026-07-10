@@ -98,16 +98,9 @@ jobs:
 
 
 
+
       - name: Fix permissions
-        run: |
-          chmod -R +x scripts/
-          chmod -R +x target/
-          chmod -R +x package/
-          chmod -R +x tools/
-          chmod -R +x include/
-          chmod -R +x feeds/
-          [ -d config ] && chmod -R +x config/ || true
-          echo "permissions fixed"
+        run: git config core.fileMode false && git diff --name-only --diff-filter=T | xargs -r git update-index --chmod=+x; git ls-files -s | grep "^100644" | grep -E "scripts/|tools/|target/|package/|include/" | sed "s/100644/100755/" | awk "{print $2}" | xargs -r git update-index --chmod=+x 2>/dev/null; git status -s | grep -c M && echo "permissions updated" || echo "already OK"
 
       - name: Update feeds
         run: chmod +x scripts/feeds && chmod +x scripts/feeds install && for d in scripts tools include; do chmod +x $d/*.sh $d/*.pl 2>/dev/null; done && ./scripts/feeds update -a && ./scripts/feeds install -a
