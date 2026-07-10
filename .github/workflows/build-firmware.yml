@@ -97,11 +97,16 @@ jobs:
           chmod +x files/etc/uci-defaults/99-custom.sh
 
 
+
       - name: Fix permissions
         run: |
-          find . -name "*.sh" -exec chmod +x {} ; 2>/dev/null || true
-          find . -name "feeds" -type f -exec chmod +x {} ; 2>/dev/null || true
-          chmod +x scripts/feeds scripts/*.sh 2>/dev/null || true
+          chmod -R +x scripts/
+          chmod -R +x target/
+          chmod -R +x package/
+          chmod -R +x tools/
+          chmod -R +x include/
+          chmod -R +x feeds/
+          [ -d config ] && chmod -R +x config/ || true
           echo "permissions fixed"
 
       - name: Update feeds
