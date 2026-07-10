@@ -40,11 +40,9 @@ jobs:
           key: builddir-${{ runner.os }}-${{ hashFiles('defconfig/mt7981-ax3000.config') }}
           restore-keys: builddir-${{ runner.os }}-
 
-      - name: Download pre-built toolchain
-        run: |
-          if [ ! -d staging_dir/toolchain-* ]; then
-            mkdir -p staging_dir
-            wget -q -O /tmp/tc.tar.zst https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+      - name: Cleanup before build
+        run: sudo apt-get clean; sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc 2>/dev/null; df -h
+
             tar -I zstd -xf /tmp/tc.tar.zst -C staging_dir --strip-components=1
             rm /tmp/tc.tar.zst
           fi
