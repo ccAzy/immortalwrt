@@ -96,7 +96,11 @@ jobs:
           printf '#!/bin/sh\nchmod +x /etc/init.d/nat-fix\n/etc/init.d/nat-fix enable\nexit 0\n' > files/etc/uci-defaults/99-custom.sh
           chmod +x files/etc/uci-defaults/99-custom.sh
 
+      - name: Fix permissions
+        run: chmod +x scripts/feeds scripts/*.sh 2>/dev/null; chmod +x target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh 2>/dev/null; echo "permissions fixed"
+
       - name: Update feeds
+        run: chmod +x scripts/feeds && chmod +x scripts/feeds install && for d in scripts tools include; do chmod +x $d/*.sh $d/*.pl 2>/dev/null; done && ./scripts/feeds update -a && ./scripts/feeds install -a
         run: ./scripts/feeds update -a && ./scripts/feeds install -a
 
       - name: Gen config
