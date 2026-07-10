@@ -1,8 +1,13 @@
 name: Build TR3000
+
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
     paths-ignore: ['README.md']
+
 
 jobs:
   build:
