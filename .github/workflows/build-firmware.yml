@@ -12,10 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Fix permissions
-        run: |
-          find . -type f ( -name "*.sh" -o -name "*.pl" -o -name "config.guess" -o -name "config.sub" -o -name "feeds" ) -exec chmod +x {} + 2>/dev/null
-          chmod -R +x scripts/ 2>/dev/null
-          echo OK
+        run: chmod -R +x scripts/ tools/ include/ target/ package/ config/ 2>/dev/null; echo OK
+
 
 
       - name: Restore ccache
