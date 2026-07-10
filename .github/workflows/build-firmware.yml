@@ -30,19 +30,18 @@ jobs:
           restore-keys: dl-${{ runner.os }}-
 
       - name: Restore toolchain cache
-      - name: Restore build cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build_dir/target-aarch64_cortex-a53_musl
-          key: builddir-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
-          restore-keys: builddir-${{ runner.os }}-
-
         uses: actions/cache/restore@v4
         with:
           path: staging_dir
           key: toolchain-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
           restore-keys: toolchain-${{ runner.os }}-
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build_dir/target-aarch64_cortex-a53_musl
+          key: builddir-${{ runner.os }}-${{ hashFiles('.github/seed.config') }}
+          restore-keys: builddir-${{ runner.os }}-
 
       - name: Download pre-built toolchain (first run only)
         run: |
