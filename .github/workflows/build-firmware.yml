@@ -66,6 +66,11 @@ jobs:
             gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip \
             zlib1g-dev file wget python3 zstd
 
+      - name: Install Rust (OpenClash build dep)
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android 2>/dev/null
