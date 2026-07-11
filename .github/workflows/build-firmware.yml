@@ -46,8 +46,10 @@ jobs:
           cp defconfig/mt7981-ax3000.config .config
           echo "CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y" >> .config
           make defconfig
-          make -j$(nproc) download V=s
-          make -j$(nproc) V=s || make -j1 V=s
+          make prereq
+          make -j4 download V=s
+          free -h && nproc && df -h
+          make -j2 V=s
 
       - name: Collect
         if: success()
