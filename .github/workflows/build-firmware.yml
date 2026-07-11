@@ -50,11 +50,37 @@ jobs:
           make -j$(nproc) V=s || make -j1 V=s
 
       - name: Collect
-        run: mkdir -p /tmp/out && cp /tmp/src/bin/targets/mediatek/filogic/*cudy* /tmp/out/ 2>/dev/null; ls -lh /tmp/out/
+        if: success()
+        run: |
+          mkdir -p /tmp/out
+          if cp /tmp/src/bin/targets/mediatek/filogic/*cudy* /tmp/out/ 2>/dev/null; then
+            echo "✅ Firmware collected successfully"
+            ls -lh /tmp/out/
+          else
+            echo "❌ Error: No firmware files found in output directory"
+            exit 1
+          fi
+
+      - name: Generate release info
+        if: success()
+        run: |
+          echo "BUILD_TIME=$(date '+%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+          echo "BUILD_NUM=${{ github.run_number }}" >> $GITHUB_ENV
 
       - uses: actions/upload-artifact@v4
-        with: {name: tr3000-firmware, path: /tmp/out/*}
+        if: success()
+        with:
+          name: tr3000-firmware-${{ env.BUILD_TIME }}
+          path: /tmp/out/*
 
       - uses: softprops/action-gh-release@v3
         if: success()
-        with: {tag_name: tr3000-padavanonly, name: TR3000, files: /tmp/out/*}
+        with:
+          tag_name: tr3000-${{ env.BUILD_TIME }}
+          name: TR3000 Build #${{ env.BUILD_NUM }}
+          body: |
+            **Build Info**
+            - Build Number: ${{ github.run_number }}
+            - Triggered by: ${{ github.event_name }}
+            - Commit: ${{ github.sha }}
+          files: /tmp/out/*
