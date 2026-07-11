@@ -93,9 +93,7 @@ jobs:
       - name: Show build errors
         if: failure()
         run: |
-          cd /tmp/src
-          echo "=== Last 200 lines of compile log ==="
-          tail -200 logs/compile.log 2>/dev/null || echo "Check Actions console"
+          echo "Check Actions console for full build log"
           df -h
 
       - name: Collect
