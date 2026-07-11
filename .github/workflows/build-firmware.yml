@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 180
 
     steps:
       - name: Clone upstream
@@ -53,9 +53,9 @@ jobs:
         run: |
           cd /tmp/src
           if grep -q "cudy_tr3000" target/linux/mediatek/filogic/image/mediatek.mk; then
-            echo "✅ Device 'cudy_tr3000' found"
+            echo "✅ Device found"
           else
-            echo "⚠️ Device not found, listing all:"
+            echo "⚠️ Listing available devices:"
             grep "define Device" target/linux/mediatek/filogic/image/mediatek.mk | head -10 || true
           fi
 
@@ -79,18 +79,18 @@ jobs:
           echo "CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y" >> .config
           make defconfig
           make prereq
-          echo "📥 Downloading packages..."
+          echo "📥 Downloading packages (retry 3x)..."
           for i in {1..3}; do make -j4 download V=s && break || sleep 30; done
-          echo "=== System Resources ===" && free -h && nproc && df -h
-          make -j1 V=s
+          echo "=== Resources ===" && free -h && nproc && df -h
+          echo "🚀 Building..."
+          make -j$(nproc) V=s || make -j1 V=s
 
-      - name: Show build errors (if failed)
+      - name: Show build errors
         if: failure()
         run: |
           cd /tmp/src
-          echo "=== Last 100 lines of compile log ==="
-          tail -100 logs/compile.log 2>/dev/null || echo "No compile log, trying make log..."
-          tail -100 logs/make.log 2>/dev/null || echo "No logs found"
+          echo "=== Last 200 lines of compile log ==="
+          tail -200 logs/compile.log 2>/dev/null || echo "Check Actions console"
           df -h
 
       - name: Collect
@@ -98,10 +98,10 @@ jobs:
         run: |
           mkdir -p /tmp/out
           if cp /tmp/src/bin/targets/mediatek/filogic/*cudy* /tmp/out/ 2>/dev/null; then
-            echo "✅ Firmware collected"
+            echo "✅ Collected"
             ls -lh /tmp/out/
           else
-            echo "❌ No firmware found!"
+            echo "❌ No firmware!"
             exit 1
           fi
 
@@ -123,9 +123,9 @@ jobs:
           tag_name: tr3000-${{ env.BUILD_TIME }}
           name: TR3000 Build #${{ env.BUILD_NUM }}
           body: |
-            **自动构建信息**
-            - 构建编号: ${{ github.run_number }}
-            - 触发方式: ${{ github.event_name }}
-            - 提交 SHA: ${{ github.sha }}
-            - 构建时间: ${{ env.BUILD_TIME }}
+            **构建信息**
+            - 编号: ${{ github.run_number }}
+            - 触发: ${{ github.event_name }}
+            - 提交: ${{ github.sha }}
+            - 时间: ${{ env.BUILD_TIME }}
           files: /tmp/out/*
