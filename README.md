@@ -1,101 +1,110 @@
-<img src="https://avatars.githubusercontent.com/u/53193414?s=200&v=4" alt="logo" width="200" height="200" align="right">
+# ImmortalWrt for Cudy TR3000
 
-# Project ImmortalWrt
+基于 [padavanonly/immortalwrt-mt798x-6.6](https://github.com/padavanonly/immortalwrt-mt798x-6.6) 的 Cudy TR3000 v1 定制固件，适用于 MT7981 (Filogic 820) 平台。
 
-ImmortalWrt is a fork of [OpenWrt](https://openwrt.org), with more packages ported, more devices supported, default optimized profiles and localization modifications for mainland China users.<br/>
-Compared to upstream, we allow to use (non-upstreamable) modifications/hacks to provide better feature/performance/support.
+## 特性
 
-Default login address: http://192.168.6.1 or http://immortalwrt.lan, username: __root__, password: _none_.
+- **内核**: Linux 6.6 LTS
+- **WiFi 驱动**: MTK 闭源 mt_wifi (mx1e), WARP v2
+- **硬件加速**: 有线 HNAT / 无线 WHNAT 全锥形 NAT
+- **Turbo ACC**: SFE 快速转发 + BBR 拥塞控制
+- **OpenClash**: 预置 clash / clash_meta / Mihomo 三内核
+- **AdGuard Home**: 内置 DNS 去广告
+- **文件共享**: ksmbd (SMB) + WSDD2 局域网发现
+- **主题**: Argon + Aurora 双主题
+- **其他工具**: DDNS, Wake-on-LAN, UPnP, iPerf3, Dufs 文件服务器
 
-## Download
-Built firmware images are available for many architectures and come with a package selection to be used as WiFi home router. To quickly find a factory image usable to migrate from a vendor stock firmware to ImmortalWrt, try the *Firmware Selector*.
+## 预置包
 
-- [ImmortalWrt Firmware Selector](https://firmware-selector.immortalwrt.org/)
+| 分类 | 包名 |
+|---|---|
+| 代理 | luci-app-openclash, dns2socks, chinadns-ng, ipt2socks, microsocks |
+| DNS | adguardhome, luci-app-adguardhome |
+| 文件 | luci-app-ksmbd, wsdd2, dufs, luci-app-dufs |
+| 网络 | luci-app-ddns, ddns-scripts, luci-app-upnp, miniupnpd-nftables |
+| 工具 | luci-app-wol, iperf3, mtr-json, tcping, conntrack, bandix |
+| 主题 | luci-theme-argon, luci-app-argon-config, luci-theme-aurora |
+| 系统 | coreutils, kmod-mtd-rw, zram-swap, zoneinfo-asia |
 
-If your device is supported, please follow the **Info** link to see install instructions or consult the support resources listed below.
+## 默认配置
 
-## Development
-To build your own firmware you need a GNU/Linux, BSD or macOS system (case sensitive filesystem required). Cygwin is unsupported because of the lack of a case sensitive file system.<br/>
+- **IP**: `192.168.6.1`
+- **用户**: `root`
+- **TCP 拥塞控制**: BBR
+- **conntrack 最大连接数**: 65536
 
-  ### Requirements
-  To build with this project, Debian 11 is preferred. And you need use the CPU based on AMD64 architecture, with at least 4GB RAM and 25 GB available disk space. Make sure the __Internet__ is accessible.
+## 快速构建
 
-  The following tools are needed to compile ImmortalWrt, the package names vary between distributions.
+### 环境要求
 
-  - Here is an example for Debian/Ubuntu users:<br/>
-    - Method 1:
-      <details>
-        <summary>Setup dependencies via APT</summary>
+Debian 11+ / Ubuntu 20.04+，AMD64，≥4GB RAM，≥25GB 磁盘。
 
-        ```bash
-        sudo apt update -y
-        sudo apt full-upgrade -y
-        sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-          bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
-          g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
-          libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
-          libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
-          ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
-          python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
-          upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
-        ```
-      </details>
-    - Method 2:
-      ```bash
-      sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
-      ```
+```bash
+sudo apt update -y
+sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib \
+  gettext git libncurses-dev libssl-dev rsync unzip zlib1g-dev file wget \
+  python3 zstd
+```
 
-  Note:
-  - Do everything as an unprivileged user, not root, without sudo.
-  - Using CPUs based on other architectures should be fine to compile ImmortalWrt, but more hacks are needed - No warranty at all.
-  - You must __not__ have spaces or non-ascii characters in PATH or in the work folders on the drive.
-  - If you're using Windows Subsystem for Linux (or WSL), removing Windows folders from PATH is required, please see [Build system setup WSL](https://openwrt.org/docs/guide-developer/build-system/wsl) documentation.
-  - Using macOS as the host build OS is __not__ recommended. No warranty at all. You can get tips from [Build system setup macOS](https://openwrt.org/docs/guide-developer/build-system/buildroot.exigence.macosx) documentation.
-  - For more details, please see [Build system setup](https://openwrt.org/docs/guide-developer/build-system/install-buildsystem) documentation.
+### 编译
 
-  ### Quickstart
-  1. Run `git clone -b openwrt-24.10-6.6 --single-branch --filter=blob:none https://github.com/padavanonly/immortalwrt-mt798x-6.6.git immortalwrt-mt798x-24.10` to clone the source code.
-  2. Run `cd immortalwrt-mt798x-24.10` to enter source directory.
-  3. Run `./scripts/feeds update -a` to obtain all the latest package definitions defined in feeds.conf / feeds.conf.default
-  4. Run `./scripts/feeds install -a` to install symlinks for all obtained packages into package/feeds/
-  5. Copy the configuration file for your device from the `defconfig` directory to the project root directory and rename it `.config`
-     
-     ```
-     # MT7981
-     cp -f defconfig/mt7981-ax3000.config .config
+```bash
+# 克隆上游仓库（padavanonly 维护的 mt798x 6.6 内核分支）
+git clone -b openwrt-24.10-6.6 --single-branch --filter=blob:none \
+  https://github.com/padavanonly/immortalwrt-mt798x-6.6.git immortalwrt-mt798x-24.10
+cd immortalwrt-mt798x-24.10
 
-     # MT7986
-     cp -f defconfig/mt7986-ax6000.config .config
-     
-  6. Run `make` to build your firmware. This will download all sources, build the cross-compile toolchain and then cross-compile the GNU/Linux kernel & all chosen applications for your target system.
+# 应用本仓库的定制配置
+# 方式一: 使用本仓库的 defconfig（推荐本地构建）
+cp /path/to/this/repo/defconfig/mt7981-ax3000.config .config
 
-  ### Related Repositories
-  The main repository uses multiple sub-repositories to manage packages of different categories. All packages are installed via the OpenWrt package manager called opkg. If you're looking to develop the web interface or port packages to ImmortalWrt, please find the fitting repository below.
-  - [LuCI Web Interface](https://github.com/immortalwrt/luci): Modern and modular interface to control the device via a web browser.
-  - [ImmortalWrt Packages](https://github.com/immortalwrt/packages): Community repository of ported packages.
-  - [OpenWrt Routing](https://github.com/openwrt/routing): Packages specifically focused on (mesh) routing.
-  - [OpenWrt Video](https://github.com/openwrt/video): Packages specifically focused on display servers and clients (Xorg and Wayland).
+# 方式二: 手动添加 TR3000 设备和增强包
+cat /path/to/this/repo/defconfig/mt7981-ax3000.config >> .config
+echo "CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y" >> .config
 
-## Support Information
-For a list of supported devices see the [OpenWrt Hardware Database](https://openwrt.org/supported_devices)
-  ### Documentation
-  - [Quick Start Guide](https://openwrt.org/docs/guide-quick-start/start)
-  - [User Guide](https://openwrt.org/docs/guide-user/start)
-  - [Developer Documentation](https://openwrt.org/docs/guide-developer/start)
-  - [Technical Reference](https://openwrt.org/docs/techref/start)
+# 添加第三方 feeds（预置包依赖）
+echo "src-git kenzok8 https://github.com/kenzok8/openwrt-packages.git;master" >> feeds.conf.default
+echo "src-git kenzok8_small https://github.com/kenzok8/small.git;master" >> feeds.conf.default
 
-  ### Support Community
-  - Support Chat: group [@ctcgfw_openwrt_discuss](https://t.me/ctcgfw_openwrt_discuss) on [Telegram](https://telegram.org/).
-  - Support Chat: group [#immortalwrt](https://matrix.to/#/#immortalwrt:matrix.org) on [Matrix](https://matrix.org/).
+# 编译
+./scripts/feeds update -a && ./scripts/feeds install -a
+make defconfig
+make -j$(nproc) V=s
+```
+
+固件输出路径: `bin/targets/mediatek/filogic/`
+
+### 预置 Clash 内核（可选）
+
+```bash
+bash preset-clash-core.sh
+```
+
+这会将 clash / clash_meta / Mihomo 内核和 GeoIP 数据库预置到固件中，刷机后 OpenClash 开箱即用。
+
+## CI 自动构建
+
+本仓库的 GitHub Actions 在每次 push 时自动构建 TR3000 固件：
+
+- 基于上游 [padavanonly/immortalwrt-mt798x-6.6](https://github.com/padavanonly/immortalwrt-mt798x-6.6)
+- 自动注入 TR3000 设备配置和增强包
+- 产物上传为 Artifact 和 Release
+
+## 刷机
+
+1. 下载 `*-cudy_tr3000-v1-ubootmod-squashfs-sysupgrade.bin`
+2. 通过 LuCI 系统→备份/升级，或使用 `sysupgrade -n` 命令
+3. 首次启动后访问 `http://192.168.6.1`
+
+## 致谢
+
+- [OpenWrt](https://openwrt.org) — 基础固件项目
+- [ImmortalWrt](https://github.com/immortalwrt) — 中国大陆优化分支
+- [padavanonly/immortalwrt-mt798x-6.6](https://github.com/padavanonly/immortalwrt-mt798x-6.6) — MT798x 6.6 内核适配
+- [kenzok8/openwrt-packages](https://github.com/kenzok8/openwrt-packages) — 社区包源
+- [vernesong/OpenClash](https://github.com/vernesong/OpenClash) — Clash 客户端
+- [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) — Clash Meta 内核
 
 ## License
-ImmortalWrt is licensed under [GPL-2.0-only](https://spdx.org/licenses/GPL-2.0-only.html).
 
-## Acknowledgements
-<table>
-  <tr>
-    <td><a href="https://dlercloud.com/"><img src="https://user-images.githubusercontent.com/22235437/111103249-f9ec6e00-8588-11eb-9bfc-67cc55574555.png" width="183" height="52" border="0" alt="Dler Cloud"></a></td>
-    <td><a href="https://www.jetbrains.com/"><img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_square.png" width="120" height="120" border="0" alt="JetBrains Black Box Logo logo"></a></td>
-    <td><a href="https://sourceforge.net/"><img src="https://sourceforge.net/sflogo.php?type=17&group_id=3663829" alt="SourceForge" width=200></a></td>
-  </tr>
-</table>
+本项目基于 ImmortalWrt / OpenWrt，采用 [GPL-2.0-only](LICENSES/GPL-2.0) 许可证。
