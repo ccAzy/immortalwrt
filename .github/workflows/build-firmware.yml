@@ -55,15 +55,6 @@ jobs:
           key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
           restore-keys: pv-builddir-${{ runner.os }}-
 
-      - name: Pre-download Clash + GeoIP
-        working-directory: /tmp/src
-        run: |
-          if [ -f "$GITHUB_WORKSPACE/preset-clash-core.sh" ]; then
-            bash "$GITHUB_WORKSPACE/preset-clash-core.sh"
-            echo "  Clash kernels ready"
-          else
-            echo "  preset-clash-core.sh not found, skipping"
-          fi
 
       - name: Apply TR3000 config
         working-directory: /tmp/src
@@ -72,45 +63,35 @@ jobs:
           echo "src-git kenzok8 https://github.com/kenzok8/openwrt-packages.git" >> feeds.conf.default
           echo "src-git kenzok8_small https://github.com/kenzok8/small.git" >> feeds.conf.default
           cat >> defconfig/mt7981-ax3000.config << 'PKGEOF'
-          CONFIG_PACKAGE_luci-app-openclash=y
-          CONFIG_PACKAGE_dns2socks=y
-          CONFIG_PACKAGE_chinadns-ng=y
-          CONFIG_PACKAGE_ipt2socks=y
-          CONFIG_PACKAGE_adguardhome=y
-          CONFIG_PACKAGE_luci-app-adguardhome=y
-          CONFIG_PACKAGE_luci-i18n-adguardhome-zh-cn=y
-          CONFIG_PACKAGE_luci-app-ksmbd=y
-          CONFIG_PACKAGE_luci-i18n-ksmbd-zh-cn=y
-          CONFIG_PACKAGE_wsdd2=y
-          CONFIG_PACKAGE_luci-app-wol=y
-          CONFIG_PACKAGE_luci-i18n-wol-zh-cn=y
+          CONFIG_PACKAGE_luci-app-homeproxy=y
+          CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn=y
+          CONFIG_PACKAGE_luci-app-adblock=y
+          CONFIG_PACKAGE_adblock=y
+          CONFIG_PACKAGE_luci-i18n-adblock-zh-cn=y
           CONFIG_PACKAGE_luci-app-ddns=y
           CONFIG_PACKAGE_luci-i18n-ddns-zh-cn=y
           CONFIG_PACKAGE_ddns-scripts=y
           CONFIG_PACKAGE_ddns-scripts-services=y
-          CONFIG_PACKAGE_iperf3=y
-          CONFIG_PACKAGE_mtr-json=y
-          CONFIG_PACKAGE_tcping=y
-          CONFIG_PACKAGE_luci-theme-argon=y
-          CONFIG_PACKAGE_luci-app-argon-config=y
-          CONFIG_PACKAGE_luci-i18n-argon-config-zh-cn=y
-          CONFIG_PACKAGE_luci-theme-aurora=y
-          CONFIG_PACKAGE_luci-app-aurora-config=y
-          CONFIG_PACKAGE_luci-i18n-aurora-config-zh-cn=y
-          CONFIG_PACKAGE_bandix=y
-          CONFIG_PACKAGE_luci-app-bandix=y
-          CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y
-          CONFIG_PACKAGE_dufs=y
-          CONFIG_PACKAGE_luci-app-dufs=y
-          CONFIG_PACKAGE_luci-i18n-dufs-zh-cn=y
+          CONFIG_PACKAGE_luci-app-wol=y
+          CONFIG_PACKAGE_luci-i18n-wol-zh-cn=y
           CONFIG_PACKAGE_luci-app-upnp=y
           CONFIG_PACKAGE_miniupnpd-nftables=y
           CONFIG_PACKAGE_luci-i18n-upnp-zh-cn=y
-          CONFIG_PACKAGE_microsocks=y
-          CONFIG_PACKAGE_conntrack=y
+          CONFIG_PACKAGE_luci-app-dufs=y
+          CONFIG_PACKAGE_dufs=y
+          CONFIG_PACKAGE_luci-i18n-dufs-zh-cn=y
+          CONFIG_PACKAGE_luci-app-bandix=y
+          CONFIG_PACKAGE_bandix=y
+          CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y
+          CONFIG_PACKAGE_luci-app-store=y
+          CONFIG_PACKAGE_luci-i18n-store-zh-cn=y
+          CONFIG_PACKAGE_wsdd2=y
+          CONFIG_PACKAGE_tcping=y
+          CONFIG_PACKAGE_luci-theme-aurora=y
+          CONFIG_PACKAGE_luci-app-aurora-config=y
+          CONFIG_PACKAGE_luci-i18n-aurora-config-zh-cn=y
           CONFIG_PACKAGE_coreutils=y
           CONFIG_PACKAGE_coreutils-base64=y
-          CONFIG_PACKAGE_coreutils-nohup=y
           CONFIG_PACKAGE_luci-compat-keep=y
           CONFIG_PACKAGE_zoneinfo-core=y
           CONFIG_PACKAGE_zoneinfo-asia=y
@@ -145,7 +126,7 @@ jobs:
             gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip \
             zlib1g-dev file wget python3 zstd ccache
 
-      - name: Install Rust (OpenClash build dep)
+      - name: Install Rust
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
