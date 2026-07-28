@@ -1,4 +1,4 @@
-name: Build TR3000
+name: Build TR3000 (padavanonly 6.6)
 
 permissions:
   contents: write
@@ -15,15 +15,59 @@ jobs:
     timeout-minutes: 360
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Clone upstream
         run: |
           git clone --depth 1 --single-branch -b openwrt-24.10-6.6 \
             https://github.com/padavanonly/immortalwrt-mt798x-6.6.git /tmp/src
-          cd /tmp/src && echo "cloned"
+
+      - name: Generate cache seed
+        run: |
+          cat /tmp/src/feeds.conf.default > /tmp/pv-seed
+          wc -c /tmp/src/defconfig/mt7981-ax3000.config >> /tmp/pv-seed
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/src/.ccache
+          key: pv-ccache-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          restore-keys: pv-ccache-${{ runner.os }}-
+
+      - name: Restore dl cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/src/dl
+          key: pv-dl-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          restore-keys: pv-dl-${{ runner.os }}-
+
+      - name: Restore toolchain cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/src/staging_dir
+          key: pv-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          restore-keys: pv-toolchain-${{ runner.os }}-
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/src/build_dir
+          key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          restore-keys: pv-builddir-${{ runner.os }}-
+
+      - name: Pre-download Clash + GeoIP
+        working-directory: /tmp/src
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/preset-clash-core.sh" ]; then
+            bash "$GITHUB_WORKSPACE/preset-clash-core.sh"
+            echo "  Clash kernels ready"
+          else
+            echo "  preset-clash-core.sh not found, skipping"
+          fi
 
       - name: Apply TR3000 config
+        working-directory: /tmp/src
         run: |
-          cd /tmp/src
           sed -i "s/192.168.110.1/192.168.6.1/g" package/base-files/files/bin/config_generate
           echo "src-git kenzok8 https://github.com/kenzok8/openwrt-packages.git" >> feeds.conf.default
           echo "src-git kenzok8_small https://github.com/kenzok8/small.git" >> feeds.conf.default
@@ -78,14 +122,15 @@ jobs:
           CONFIG_PACKAGE_luci-i18n-ttyd-zh-cn=y
           CONFIG_PACKAGE_luci-i18n-turboacc-mtk-zh-cn=y
           CONFIG_PACKAGE_luci-i18n-wrtbwmon-zh-cn=y
+          CONFIG_CCACHE=y
           PKGEOF
           mkdir -p files/etc
           echo "net.ipv4.tcp_congestion_control=bbr" > files/etc/sysctl.conf
           echo "net.netfilter.nf_conntrack_max=65536" >> files/etc/sysctl.conf
 
       - name: Verify device name
+        working-directory: /tmp/src
         run: |
-          cd /tmp/src
           if grep -q "cudy_tr3000" target/linux/mediatek/filogic/image/mediatek.mk; then
             echo "✅ Device found"
           else
@@ -98,7 +143,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y build-essential clang flex bison g++ gawk \
             gcc-multilib gettext git libncurses-dev libssl-dev rsync unzip \
-            zlib1g-dev file wget python3 zstd
+            zlib1g-dev file wget python3 zstd ccache
 
       - name: Install Rust (OpenClash build dep)
         run: |
@@ -111,15 +156,16 @@ jobs:
           df -h
 
       - name: Build
+        working-directory: /tmp/src
         run: |
-          cd /tmp/src
+          export PATH="/usr/lib/ccache:$PATH"
           ./scripts/feeds update -a && ./scripts/feeds install -a
           cp defconfig/mt7981-ax3000.config .config
           echo "CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y" >> .config
           make defconfig
           make prereq
-          echo "📥 Downloading packages (retry 3x)..."
-          for i in {1..3}; do make -j4 download V=s && break || sleep 30; done
+          echo "📥 Downloading packages..."
+          make -j$(nproc) download V=s || make -j$(nproc) download V=s || make -j1 download V=s
           echo "=== Resources ===" && free -h && nproc && df -h
           echo "🚀 Building..."
           make -j$(nproc) V=s || make -j1 V=s
@@ -132,9 +178,10 @@ jobs:
 
       - name: Collect
         if: success()
+        working-directory: /tmp/src
         run: |
           mkdir -p /tmp/out
-          if cp /tmp/src/bin/targets/mediatek/filogic/*cudy* /tmp/out/ 2>/dev/null; then
+          if cp bin/targets/mediatek/filogic/*cudy* /tmp/out/ 2>/dev/null; then
             echo "✅ Collected"
             ls -lh /tmp/out/
           else
@@ -166,3 +213,27 @@ jobs:
             - 提交: ${{ github.sha }}
             - 时间: ${{ env.BUILD_TIME }}
           files: /tmp/out/*
+
+      - name: Save ccache
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/src/.ccache
+          key: pv-ccache-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+
+      - name: Save dl cache
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/src/dl
+          key: pv-dl-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+
+      - name: Save build cache
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/src/build_dir
+          key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+
+      - name: Save toolchain cache
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/src/staging_dir
+          key: pv-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
