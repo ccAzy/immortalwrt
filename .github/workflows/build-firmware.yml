@@ -164,7 +164,20 @@ jobs:
 
           echo "=== Resources ===" && free -h && nproc && df -h
           echo "🚀 Building..."
-          make -j$(nproc) V=s || make -j1 V=s
+          if make -j$(nproc) V=s; then
+            echo "✅ Build OK"
+          else
+            # BBRv3 may have caused compile error, restore v1 and retry
+            if [ -f /tmp/tcp_bbr.bak ] && [ -f "$BBR_FILE" ]; then
+              echo "⚠️ Build failed, restoring original tcp_bbr.c (BBRv1) ..."
+              cp /tmp/tcp_bbr.bak "$BBR_FILE"
+              echo "🔄 Retry with BBRv1..."
+              make -j1 V=s
+            else
+              echo "🔄 Retry -j1..."
+              make -j1 V=s
+            fi
+          fi
 
       - name: Show build errors
         if: failure()
