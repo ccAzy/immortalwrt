@@ -137,8 +137,8 @@ jobs:
         uses: softprops/action-gh-release@v3
         if: success()
         with:
-          tag_name: tr3000-autobuild
-          name: TR3000 ImmortalWrt
+          tag_name: tr3000-master-autobuild
+          name: TR3000 ImmortalWrt (master 6.18)
           files: /tmp/out/*
           token: ${{ secrets.GITHUB_TOKEN }}
 
