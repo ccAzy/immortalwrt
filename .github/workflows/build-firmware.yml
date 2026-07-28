@@ -149,6 +149,19 @@ jobs:
           make prereq
           echo "📥 Downloading packages..."
           make -j$(nproc) download V=s || make -j$(nproc) download V=s || make -j1 download V=s
+
+          # 🔧 BBRv3 injection: swap kernel tcp_bbr.c with google/bbr v3
+          echo "🔧 Injecting BBRv3..."
+          BBR_URL="https://raw.githubusercontent.com/google/bbr/v3/net/ipv4/tcp_bbr.c"
+          make target/linux/prepare V=s 2>&1 | tail -5 || true
+          BBR_FILE=$(find build_dir -maxdepth 6 -path '*/net/ipv4/tcp_bbr.c' -type f 2>/dev/null | head -1)
+          if [ -f "$BBR_FILE" ]; then
+            cp "$BBR_FILE" /tmp/tcp_bbr.bak
+            wget -qO "$BBR_FILE" "$BBR_URL" && echo "✅ BBRv3 injected" || { echo "⚠️ BBRv3 download failed, keeping original"; mv /tmp/tcp_bbr.bak "$BBR_FILE"; }
+          else
+            echo "⚠️ Kernel source not ready, BBRv3 skipped (will use v1)"
+          fi
+
           echo "=== Resources ===" && free -h && nproc && df -h
           echo "🚀 Building..."
           make -j$(nproc) V=s || make -j1 V=s
