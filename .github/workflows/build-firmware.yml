@@ -106,6 +106,8 @@ jobs:
           CONFIG_PACKAGE_luci-i18n-turboacc-mtk-zh-cn=y
           CONFIG_PACKAGE_luci-i18n-wrtbwmon-zh-cn=y
           CONFIG_CCACHE=y
+          CONFIG_PACKAGE_mihomo=n
+          CONFIG_PACKAGE_v2ray-geoip=n
           PKGEOF
           mkdir -p files/etc
           echo "net.ipv4.tcp_congestion_control=bbr" > files/etc/sysctl.conf
