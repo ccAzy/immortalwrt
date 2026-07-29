@@ -135,3 +135,4 @@ define Host/Clean
 endef
 
 $(eval $(call HostBuild))
+HOST_CFLAGS += -D_LARGEFILE64_SOURCE
