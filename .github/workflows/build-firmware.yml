@@ -156,6 +156,8 @@ jobs:
         working-directory: /tmp/src
         run: |
           export PATH="/usr/lib/ccache:$PATH"
+          # Fix binutils off64_t on glibc where _FILE_OFFSET_BITS=64 hides it
+          echo 'HOST_CFLAGS += -D_LARGEFILE64_SOURCE' >> toolchain/binutils/Makefile
           ./scripts/feeds update -a && ./scripts/feeds install -a
           cp defconfig/mt7981-ax3000.config .config
           echo "CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y" >> .config
