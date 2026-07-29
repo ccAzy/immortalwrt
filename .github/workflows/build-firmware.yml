@@ -120,8 +120,6 @@ jobs:
           CONFIG_PACKAGE_luci-i18n-turboacc-mtk-zh-cn=y
           CONFIG_PACKAGE_luci-i18n-wrtbwmon-zh-cn=y
           CONFIG_CCACHE=y
-          CONFIG_PACKAGE_mihomo=n
-          CONFIG_PACKAGE_v2ray-geoip=n
           PKGEOF
           mkdir -p files/etc
           echo "net.ipv4.tcp_congestion_control=bbr" > files/etc/sysctl.conf
@@ -162,6 +160,11 @@ jobs:
           cp defconfig/mt7981-ax3000.config .config
           echo "CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod=y" >> .config
           make defconfig
+          # Force-disable bulky proxy packages (defconfig resolves deps and re-enables)
+          sed -i '/CONFIG_PACKAGE_mihomo/d' .config
+          echo "# CONFIG_PACKAGE_mihomo is not set" >> .config
+          sed -i '/CONFIG_PACKAGE_v2ray-geoip/d' .config
+          echo "# CONFIG_PACKAGE_v2ray-geoip is not set" >> .config
           make prereq
           echo "📥 Downloading packages..."
           make -j$(nproc) download V=s || make -j$(nproc) download V=s || make -j1 download V=s
