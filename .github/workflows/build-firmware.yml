@@ -1,4 +1,4 @@
-name: Build TR3000 (padavanonly 6.6)
+name: Build TR3000 (master 6.18)
 
 permissions:
   contents: write
@@ -24,36 +24,36 @@ jobs:
 
       - name: Generate cache seed
         run: |
-          cat /tmp/src/feeds.conf.default > /tmp/pv-seed
-          wc -c /tmp/src/defconfig/mt7981-ax3000.config >> /tmp/pv-seed
+          cat /tmp/src/feeds.conf.default > /tmp/master-seed
+          wc -c /tmp/src/defconfig/mt7981-ax3000.config >> /tmp/master-seed
 
       - name: Restore ccache
         uses: actions/cache/restore@v4
         with:
           path: /tmp/src/.ccache
-          key: pv-ccache-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
-          restore-keys: pv-ccache-${{ runner.os }}-
+          key: master-ccache-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
+          restore-keys: master-ccache-${{ runner.os }}-
 
       - name: Restore dl cache
         uses: actions/cache/restore@v4
         with:
           path: /tmp/src/dl
-          key: pv-dl-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
-          restore-keys: pv-dl-${{ runner.os }}-
+          key: master-dl-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
+          restore-keys: master-dl-${{ runner.os }}-
 
       - name: Restore toolchain cache
         uses: actions/cache/restore@v4
         with:
           path: /tmp/src/staging_dir
-          key: pv-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
-          restore-keys: pv-toolchain-${{ runner.os }}-
+          key: master-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
+          restore-keys: master-toolchain-${{ runner.os }}-
 
       - name: Restore build cache
         uses: actions/cache/restore@v4
         with:
           path: /tmp/src/build_dir
-          key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
-          restore-keys: pv-builddir-${{ runner.os }}-
+          key: master-builddir-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
+          restore-keys: master-builddir-${{ runner.os }}-
 
 
       - name: Apply TR3000 config
@@ -209,14 +209,14 @@ jobs:
       - uses: actions/upload-artifact@v5
         if: success()
         with:
-          name: tr3000-firmware-${{ env.BUILD_TIME }}
+          name: tr3000-master-firmware-${{ env.BUILD_TIME }}
           path: /tmp/out/*
 
       - uses: softprops/action-gh-release@v3
         if: success()
         with:
-          tag_name: tr3000-${{ env.BUILD_TIME }}
-          name: TR3000 Build #${{ env.BUILD_NUM }}
+          tag_name: tr3000-master-${{ env.BUILD_TIME }}
+          name: TR3000 Master Build #${{ env.BUILD_NUM }}
           body: |
             **构建信息**
             - 编号: ${{ github.run_number }}
@@ -229,22 +229,22 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: /tmp/src/.ccache
-          key: pv-ccache-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          key: master-ccache-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
 
       - name: Save dl cache
         uses: actions/cache/save@v4
         with:
           path: /tmp/src/dl
-          key: pv-dl-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          key: master-dl-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
 
       - name: Save build cache
         uses: actions/cache/save@v4
         with:
           path: /tmp/src/build_dir
-          key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          key: master-builddir-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
 
       - name: Save toolchain cache
         uses: actions/cache/save@v4
         with:
           path: /tmp/src/staging_dir
-          key: pv-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
+          key: master-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
