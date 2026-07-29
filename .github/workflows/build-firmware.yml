@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Clone upstream
         run: |
@@ -28,28 +28,28 @@ jobs:
           wc -c /tmp/src/defconfig/mt7981-ax3000.config >> /tmp/master-seed
 
       - name: Restore ccache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/.ccache
           key: master-ccache-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
           restore-keys: master-ccache-${{ runner.os }}-
 
       - name: Restore dl cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/dl
           key: master-dl-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
           restore-keys: master-dl-${{ runner.os }}-
 
       - name: Restore toolchain cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/staging_dir
           key: master-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
           restore-keys: master-toolchain-${{ runner.os }}-
 
       - name: Restore build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/build_dir
           key: master-builddir-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
@@ -226,25 +226,25 @@ jobs:
           files: /tmp/out/*
 
       - name: Save ccache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/.ccache
           key: master-ccache-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
 
       - name: Save dl cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/dl
           key: master-dl-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
 
       - name: Save build cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/build_dir
           key: master-builddir-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
 
       - name: Save toolchain cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/staging_dir
           key: master-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/master-seed') }}
