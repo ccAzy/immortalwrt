@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Clone upstream
         run: |
@@ -28,14 +28,14 @@ jobs:
           wc -c /tmp/src/defconfig/mt7981-ax3000.config >> /tmp/pv-seed
 
       - name: Restore ccache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/.ccache
           key: pv-ccache-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
           restore-keys: pv-ccache-${{ runner.os }}-
 
       - name: Restore dl cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/dl
           key: pv-dl-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
@@ -43,14 +43,14 @@ jobs:
 
       - name: Restore toolchain cache
         id: restore-toolchain
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/staging_dir
           key: pv-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
           restore-keys: pv-toolchain-${{ runner.os }}-
 
       - name: Restore build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /tmp/src/build_dir
           key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
@@ -240,25 +240,25 @@ jobs:
           files: /tmp/out/*
 
       - name: Save ccache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/.ccache
           key: pv-ccache-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
 
       - name: Save dl cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/dl
           key: pv-dl-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
 
       - name: Save build cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/build_dir
           key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
 
       - name: Save toolchain cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/src/staging_dir
           key: pv-toolchain-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
