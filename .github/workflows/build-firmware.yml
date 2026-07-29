@@ -42,6 +42,7 @@ jobs:
           restore-keys: pv-dl-${{ runner.os }}-
 
       - name: Restore toolchain cache
+        id: restore-toolchain
         uses: actions/cache/restore@v4
         with:
           path: /tmp/src/staging_dir
@@ -54,6 +55,19 @@ jobs:
           path: /tmp/src/build_dir
           key: pv-builddir-${{ runner.os }}-${{ hashFiles('/tmp/pv-seed') }}
           restore-keys: pv-builddir-${{ runner.os }}-
+
+      - name: Download pre-built toolchain
+        if: ${{ ! steps.restore-toolchain.outputs.cache-hit }}
+        working-directory: /tmp/src
+        run: |
+          TOOLCHAIN_URL="https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic.MTK7981.tar.xz"
+          echo "⬇️ Downloading toolchain..."
+          curl -sL "$TOOLCHAIN_URL" -o /tmp/toolchain.tar.xz 2>&1 || {
+            echo "⚠️ Toolchain download failed, building from source"
+            exit 0
+          }
+          echo "📦 Extracting..."
+          tar -xf /tmp/toolchain.tar.xz -C /tmp/src/staging_dir --strip 3 2>/dev/null && echo "✅ Toolchain ready" || echo "⚠️ Toolchain extract failed, building from source"
 
 
       - name: Apply TR3000 config
