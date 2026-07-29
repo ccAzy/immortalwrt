@@ -57,7 +57,7 @@ jobs:
           restore-keys: pv-builddir-${{ runner.os }}-
 
       - name: Download pre-built toolchain
-        if: ${{ ! steps.restore-toolchain.outputs.cache-hit }}
+        if: false  # disabled: pre-built toolchain compiled on 24.04, incompatible with 22.04 glibc
         working-directory: /tmp/src
         run: |
           TOOLCHAIN_URL="https://downloads.immortalwrt.org/releases/24.10-SNAPSHOT/targets/mediatek/filogic/immortalwrt-toolchain-24.10-SNAPSHOT-mediatek-filogic.MTK7981.tar.xz"
