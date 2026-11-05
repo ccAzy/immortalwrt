@@ -183,7 +183,9 @@ jobs:
           chmod +x scripts/feeds 2>/dev/null || true
           # 只碰 scripts/，绝不动 tools/：chmod 会刷新 mtime，
           # tools/ 源码一变，缓存里的主机工具对象全部作废（实测重编 931 个）
-          find scripts -maxdepth 1 -type f \
+          # 递归处理 scripts/（含 scripts/config 下的 mconf-cfg.sh 等，
+          # 它们是构建 kconfig 时直接执行的）；仍然不碰 tools/
+          find scripts -type f \
             -exec chmod +x {} \; 2>/dev/null || true
           ls -l scripts/feeds
 
