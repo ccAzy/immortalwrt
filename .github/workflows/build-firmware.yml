@@ -186,24 +186,34 @@ jobs:
       # 所以这里一次覆盖三处：仓库根、scripts/（递归）、config/（递归）。
       # 刻意不碰 tools/：chmod 会刷新 mtime，tools/ 源码一变，
       # 缓存里的主机工具对象全部作废（实测重编 931 个，白费 16 分钟）。
+      # 这个 fork 在 Windows 上创建，git 索引把执行位全丢了（289 个文件）。
+      # 反复逐个目录补已经踩过三次坑，这里改成按权威清单逐条 chmod：
+      # configs/exec-bits.txt 是「openwrt/openwrt @ openwrt-24.10 里 mode=100755
+      # 的文件」与本地 git ls-tree 逐条比对的产物，不是按目录猜的。
       - name: 修复执行位
         run: |
-          find scripts config -type f -exec chmod +x {} \; 2>/dev/null || true
-          find . -maxdepth 1 -type f -name '*.sh' \
-            -exec chmod +x {} \; 2>/dev/null || true
-          chmod +x scripts/feeds 2>/dev/null || true
+          LIST=/tmp/exec-bits.txt
+          grep -v '^#' configs/exec-bits.txt | grep -v '^$' > "$LIST"
+          n=$(wc -l < "$LIST")
+          echo "清单条目: $n"
+          xargs -a "$LIST" -r chmod +x 2>/dev/null || true
 
-          # 快速自检：这几处是已知会被直接执行的，缺一个就立刻报错，
-          # 不要等到 20 分钟后在别的步骤里才暴露
           miss=0
-          for f in scripts/feeds config/check-uname.sh \
-                   config/check-hostcxx.sh scripts/config/mconf-cfg.sh; do
+          while IFS= read -r f; do
             if [ -e "$f" ] && [ ! -x "$f" ]; then
-              echo "缺执行位: $f"; miss=1
+              echo "仍缺执行位: $f"; miss=$((miss + 1))
             fi
-          done
-          [ "$miss" -eq 0 ] || exit 1
-          echo 'OK  关键脚本执行位就位'
+          done < "$LIST"
+          echo "复查后仍缺执行位: $miss"
+          # 只报前 20 条，避免刷屏，但要能看到是哪些
+          if [ "$miss" -ne 0 ]; then
+            while IFS= read -r f; do
+              [ -e "$f" ] && [ ! -x "$f" ] && echo "  $f"
+            done < "$LIST" | head -20
+            exit 1
+          fi
+          echo 'OK  清单内全部脚本执行位就位'
+
       - name: 归一化换行（CRLF -> LF）
         run: sh configs/normalize-lineendings.sh
 
