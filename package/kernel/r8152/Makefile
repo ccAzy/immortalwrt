@@ -22,6 +22,7 @@ PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
 include $(INCLUDE_DIR)/package.mk
 
 define KernelPackage/usb-net-rtl8152-vendor
+  DEFAULT:=n
   TITLE:=Kernel module for USB-to-Ethernet Realtek convertors
   SUBMENU:=USB Support
   DEPENDS:=+kmod-usb-core

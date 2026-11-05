@@ -15,6 +15,7 @@ include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
 
 define KernelPackage/sprd_pcie
+  DEFAULT:=n
   SUBMENU:=WWAN Support
   TITLE:=Kernel pcie driver for SPRD device
   FILES:=$(PKG_BUILD_DIR)/sprd_pcie.ko

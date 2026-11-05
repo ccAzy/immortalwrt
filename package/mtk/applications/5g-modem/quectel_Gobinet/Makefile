@@ -15,6 +15,7 @@ include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
 
 define KernelPackage/gobinet
+  DEFAULT:=n
   SUBMENU:=WWAN Support
   TITLE:=Quectel Linux USB Gobinet Driver
   DEPENDS:=+kmod-usb-net

@@ -15,6 +15,7 @@ include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
 
 define KernelPackage/qmi_wwan_m
+  DEFAULT:=n
   SUBMENU:=WWAN Support
   TITLE:=Meig Linux USB QMI WWAN Driver
   DEPENDS:=+kmod-usb-net +kmod-usb-wdm

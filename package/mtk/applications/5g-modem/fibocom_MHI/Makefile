@@ -15,6 +15,7 @@ include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
 
 define KernelPackage/pcie_mhi_fb
+  DEFAULT:=n
   SUBMENU:=WWAN Support
   TITLE:=Kernel pcie driver for MHI device
   DEPENDS:=+pciids +pciutils +fibocom-dial
