@@ -224,6 +224,59 @@ jobs:
           # kenzok8_small 的 luci-app-fchomo 有递归依赖 bug，必删
           rm -rf feeds/kenzok8_small/luci-app-fchomo
 
+          # ---- 必须在这里重新解析一次 .config ----
+          # 第 12 步写 .config 时 feeds 还没装，libwebsockets-full 这类
+          # 来自 feeds 的符号当时还不存在，会被 kconfig 当未知项直接丢掉。
+          # 等 feeds 装好符号出现，.config 里已经没有那行，于是回落到
+          # 默认变体 libwebsockets-openssl（无 libuv）→ ttyd 配置阶段 FATAL。
+          # #142 实测就死在这。
+          echo '--- feeds 装完，重新解析 .config（非交互）---'
+          make defconfig </dev/null
+
+          echo '--- 重新解析后复核包清单 ---'
+          fail=0
+
+          # 必须在的包（逐行拼接，避免超长行）
+          req="CONFIG_PACKAGE_adblock-fast"
+          req="$req CONFIG_PACKAGE_luci-app-adblock-fast"
+          req="$req CONFIG_PACKAGE_luci-theme-argon"
+          req="$req CONFIG_PACKAGE_luci-theme-vantage"
+          req="$req CONFIG_PACKAGE_luci-app-vantage"
+          req="$req CONFIG_PACKAGE_kmod-tcp-bbr"
+          req="$req CONFIG_PACKAGE_libwebsockets-full"
+          for s in $req; do
+            if grep -q "^${s}=y" .config; then
+              echo "  OK   $s"
+            else
+              echo "  MISS $s 解析后被丢了"; fail=1
+            fi
+          done
+
+          # 必须没有的包
+          bad="luci-app-openclash adguardhome luci-app-adguardhome"
+          bad="$bad luci-app-upnp miniupnpd-nftables"
+          bad="$bad luci-app-homeproxy mihomo"
+          bad="$bad dns2socks chinadns-ng ipt2socks microsocks"
+          for s in $bad; do
+            if grep -q "^CONFIG_PACKAGE_${s}=y" .config; then
+              echo "  BAD  $s"; fail=1
+            fi
+          done
+
+          # 必须仍然关闭的 kmod（ALL_KMODS 会顶回来）
+          mustoff="kmod-sprd_pcie kmod-pcie_mhi_fb"
+          mustoff="$mustoff kmod-qmi_wwan_f kmod-qmi_wwan_m"
+          mustoff="$mustoff kmod-qmi_wwan_q kmod-gobinet"
+          mustoff="$mustoff kmod-usb-net-rtl8152-vendor"
+          for s in $mustoff; do
+            if grep -q "^CONFIG_PACKAGE_${s}=m" .config; then
+              echo "  BAD  $s 又被打开了"; fail=1
+            fi
+          done
+
+          [ "$fail" -eq 0 ] || { echo "复核不通过"; exit 1; }
+          echo 'OK  feeds 之后包清单复核通过'
+
       - name: 修 host binutils 的 off64_t
         run: |
           echo 'HOST_CFLAGS += -D_LARGEFILE64_SOURCE' \
