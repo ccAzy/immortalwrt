@@ -336,7 +336,22 @@ jobs:
         run: |
           export PATH="/usr/lib/ccache:$PATH"
           free -h && nproc && df -h /
-          make -j"$(nproc)" V=s || make -j1 V=s
+          set -o pipefail
+          # 先严格编：真有问题就立刻暴露
+          if make -j"$(nproc)" V=s 2>&1 | tee /tmp/build.log; then
+            echo 'OK  一次编过'
+          else
+            echo '--- 首次失败涉及的包 ---'
+            grep -aE '^ERROR: package/' /tmp/build.log | tail -20 || true
+            # ALL_KMODS 会把上千个 kmod 都编一遍，其中个别年久失修的
+            # 外部驱动编不过是常事。这些包不进固件，只影响包仓库里少几个
+            # .ipk，所以用 -k 继续编，别让它们拖死整轮
+            echo '--- 改用 -k 继续（只跳过失败的包）---'
+            make -k -j"$(nproc)" V=s 2>&1 | tee /tmp/build2.log || true
+            echo '--- -k 之后仍失败的包 ---'
+            grep -aE '^ERROR: package/' /tmp/build2.log | tail -20 || true
+            tail -20 /tmp/build2.log
+          fi
 
       - name: 校验产物（含包仓库）
         run: |
