@@ -27,15 +27,19 @@ WORK=$(mktemp -d)
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
-find "$ROOT/target" "$ROOT/package" "$ROOT/toolchain" -type f \
-	\( -name '*.patch' -o -name '*.sh' -o -name '*.mk' \
-	   -o -name '*.dts' -o -name '*.dtsi' -o -name 'Kconfig' \) \
-	-print0 > "$WORK/all" 2>/dev/null || true
+# 只处理 target/ 下的补丁与设备树：它们每次构建都要重新打/重新编。
+# 不碰 package/ 与 toolchain/ 下的 .sh/.mk —— sed 会刷新 mtime，
+# 那会让 staging_dir 里缓存好的工具链与主机工具判定为过期而全量重编
+# （实测过一次：主机工具因此重编 931 个对象，白费 16 分钟）。
+find "$ROOT/target" -type f \
+	\( -name '*.patch' -o -name '*.dts' -o -name '*.dtsi' \
+	   -o -name 'Kconfig' \) \
+	-print0 >"$WORK/all" 2>/dev/null || true
 
-echo "纳入处理范围的文件: $(tr -cd '\0' < "$WORK/all" | wc -c)"
+echo "纳入处理范围的文件: $(tr -cd '\0' <"$WORK/all" | wc -c)"
 
 # 逐文件：含 CR 就就地删掉行尾 CR
-: > "$WORK/before"
+: >"$WORK/before"
 xargs -0 -r sh -c '
 	work=$1; shift
 	for f in "$@"; do
@@ -46,12 +50,12 @@ xargs -0 -r sh -c '
 			sed -i "s/\r\$//" "$f"
 		fi
 	done
-' _ "$WORK" < "$WORK/all"
+' _ "$WORK" <"$WORK/all"
 
-echo "归一化前含 CR: $(wc -l < "$WORK/before")"
+echo "归一化前含 CR: $(wc -l <"$WORK/before")"
 
 # 复查同一批文件
-: > "$WORK/left"
+: >"$WORK/left"
 xargs -0 -r sh -c '
 	work=$1; shift
 	for f in "$@"; do
@@ -61,9 +65,9 @@ xargs -0 -r sh -c '
 			printf "%s\n" "$f" >> "$work/left"
 		fi
 	done
-' _ "$WORK" < "$WORK/all"
+' _ "$WORK" <"$WORK/all"
 
-after=$(wc -l < "$WORK/left")
+after=$(wc -l <"$WORK/left")
 echo "归一化后含 CR: $after"
 
 if [ "$after" -ne 0 ]; then

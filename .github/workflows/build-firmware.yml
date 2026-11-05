@@ -181,8 +181,9 @@ jobs:
       - name: 修复执行位
         run: |
           chmod +x scripts/feeds 2>/dev/null || true
-          find scripts tools -type f -exec chmod +x {} \; 2>/dev/null || true
-          find . -maxdepth 2 -name '*.sh' \
+          # 只碰 scripts/，绝不动 tools/：chmod 会刷新 mtime，
+          # tools/ 源码一变，缓存里的主机工具对象全部作废（实测重编 931 个）
+          find scripts -maxdepth 1 -type f \
             -exec chmod +x {} \; 2>/dev/null || true
           ls -l scripts/feeds
 
