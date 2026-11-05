@@ -178,20 +178,32 @@ jobs:
       # 这个 fork 是在 Windows 上创建/提交的，git 索引里 556 个脚本的
       # mode 被存成了 100644（无执行位），导致 ./scripts/feeds 直接
       # Permission denied (exit 126)。这里在构建前统一补回执行位。
+      # 这个 fork 在 Windows 上创建，git 索引里几乎所有脚本都是 100644（无执行位），
+      # 而构建过程会直接执行它们。已经踩过三次：
+      #   ./scripts/feeds            -> 更新 feeds 失败
+      #   ./scripts/config/mconf-cfg.sh -> kconfig 菜单构建失败
+      #   ./config/check-uname.sh    -> Config.in 解析失败
+      # 所以这里一次覆盖三处：仓库根、scripts/（递归）、config/（递归）。
+      # 刻意不碰 tools/：chmod 会刷新 mtime，tools/ 源码一变，
+      # 缓存里的主机工具对象全部作废（实测重编 931 个，白费 16 分钟）。
       - name: 修复执行位
         run: |
-          chmod +x scripts/feeds 2>/dev/null || true
-          # 只碰 scripts/，绝不动 tools/：chmod 会刷新 mtime，
-          # tools/ 源码一变，缓存里的主机工具对象全部作废（实测重编 931 个）
-          # 递归处理 scripts/（含 scripts/config 下的 mconf-cfg.sh 等，
-          # 它们是构建 kconfig 时直接执行的）；仍然不碰 tools/
-          find scripts -type f \
+          find scripts config -type f -exec chmod +x {} \; 2>/dev/null || true
+          find . -maxdepth 1 -type f -name '*.sh' \
             -exec chmod +x {} \; 2>/dev/null || true
-          ls -l scripts/feeds
+          chmod +x scripts/feeds 2>/dev/null || true
 
-      # 这个 fork 在 Windows 上提交过，部分 .patch 被存成 CRLF；带 CR 的
-      # 补丁会把 CR 写进内核源码，导致后续补丁上下文匹配失败
-      # （实测 999-1716/1720 含 CR，最终 999-1722 hunk #4 打不上）。
+          # 快速自检：这几处是已知会被直接执行的，缺一个就立刻报错，
+          # 不要等到 20 分钟后在别的步骤里才暴露
+          miss=0
+          for f in scripts/feeds config/check-uname.sh \
+                   config/check-hostcxx.sh scripts/config/mconf-cfg.sh; do
+            if [ -e "$f" ] && [ ! -x "$f" ]; then
+              echo "缺执行位: $f"; miss=1
+            fi
+          done
+          [ "$miss" -eq 0 ] || exit 1
+          echo 'OK  关键脚本执行位就位'
       - name: 归一化换行（CRLF -> LF）
         run: sh configs/normalize-lineendings.sh
 
