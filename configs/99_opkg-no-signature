@@ -1,0 +1,19 @@
+#!/bin/sh
+# 允许安装未签名的本地包。
+#
+# 背景：我们自编的 packages/ 仓库（随 Release 发布）没有 usign 私钥签名，
+# opkg 默认会拒绝安装。这里去掉全局强制签名校验。
+#
+# 影响面：官方远程源照样能装，只是不再校验签名 —— 也就是说理论上
+# 被中间人篡改的源内容不会被拦下。家里这台在 NAT 后面、且主要从
+# 自己电脑/U盘装包，风险可接受。
+#
+# 想恢复：把 'option check_signature' 加回 /etc/opkg.conf 即可，
+# 但之后装自编包要手动加 --force-signature（opkg 未必支持），
+# 更实际的做法是给自编仓库生成 usign 密钥对并签名。
+
+if [ -f /etc/opkg.conf ]; then
+	sed -i '/^option check_signature$/d' /etc/opkg.conf
+fi
+
+exit 0

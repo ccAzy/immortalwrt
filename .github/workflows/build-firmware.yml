@@ -52,6 +52,7 @@ jobs:
           test -d "$GITHUB_WORKSPACE/package/luci-theme-vantage"
           test -d "$GITHUB_WORKSPACE/package/luci-app-vantage"
           echo "Vantage 两个包已就位"
+
       - name: 生成缓存种子
         id: seed
         run: |
@@ -110,7 +111,6 @@ jobs:
           sudo rm -rf /usr/local/lib/android 2>/dev/null
           df -h /
 
-
       # CONFIG_CCACHE=y 已写进 defconfig；这里把 ccache 目录固定到
       # 工作区内的 .ccache，并限制体积，交给下面的 cache 步骤持久化。
       - name: 配置 ccache
@@ -121,6 +121,7 @@ jobs:
           echo "CCACHE_DIR=$CCACHE_DIR" >> "$GITHUB_ENV"
           echo "CCACHE_COMPRESS=1" >> "$GITHUB_ENV"
           ccache --show-stats | head -6
+
       - name: 生成 .config 并校验包清单
         run: |
           # 默认 LAN 改成 192.168.6.1
@@ -157,14 +158,18 @@ jobs:
 
           [ "$fail" -eq 0 ] || { echo "包清单校验失败"; exit 1; }
 
-      - name: 内置 sysctl 与默认主题
+      - name: 内置配置（sysctl / 默认主题 / opkg）
         run: |
-          mkdir -p files/etc/uci-defaults
+          mkdir -p files/etc/uci-defaults files/etc/opkg
           cp configs/tr3000-sysctl.conf files/etc/sysctl.conf
+          cp configs/opkg-arch.conf files/etc/opkg/arch.conf
           D=files/etc/uci-defaults/99_luci-theme-default
           cp configs/99_luci-theme-default "$D"
-          chmod 755 files/etc/uci-defaults/99_luci-theme-default
-          cat files/etc/sysctl.conf
+          cp configs/99_opkg-no-signature \
+            files/etc/uci-defaults/99_opkg-no-signature
+          chmod 755 files/etc/uci-defaults/99_*
+          echo '--- sysctl ---'; cat files/etc/sysctl.conf
+          echo '--- opkg arch ---'; cat files/etc/opkg/arch.conf
 
       - name: 更新 feeds
         run: |
@@ -227,28 +232,43 @@ jobs:
           free -h && nproc && df -h /
           make -j"$(nproc)" V=s || make -j1 V=s
 
-      - name: 校验产物
+      - name: 校验产物（含包仓库）
         run: |
           MDIR=bin/targets/mediatek/filogic
-          M=$(find "$MDIR" -maxdepth 1 -name "*.manifest" | head -1)
+          M=$(find "$MDIR" -maxdepth 1 -name '*.manifest' | head -1)
           echo "manifest: $M"
           grep -q '^adblock-fast ' "$M" || {
-            echo "固件里没有 adblock-fast"; exit 1; }
+            echo '固件里没有 adblock-fast'; exit 1; }
           for bad in luci-app-openclash adguardhome \
                      luci-app-homeproxy mihomo; do
             if grep -qiE "^${bad} " "$M"; then
               echo "固件里混进了 $bad"; exit 1
             fi
           done
-          echo "OK  包清单符合预期"
-          ls -lh bin/targets/mediatek/filogic/*cudy*
+          echo 'OK  固件包清单符合预期'
+
+          # ALL_KMODS 是否真的生效：看 packages/ 里的 kmod 数量
+          PKG="$MDIR/packages"
+          [ -d "$PKG" ] || { echo '没有 packages 目录'; exit 1; }
+          KMOD=$(find "$PKG" -maxdepth 1 -name 'kmod-*.ipk' | wc -l)
+          ALL=$(find "$PKG" -maxdepth 1 -name '*.ipk' | wc -l)
+          echo "包仓库: kmod=$KMOD, 总计=$ALL"
+          if [ "$KMOD" -lt 300 ]; then
+            echo "ALL_KMODS 似乎没生效（kmod 只有 $KMOD 个）"; exit 1
+          fi
+          echo 'OK  ALL_KMODS 生效'
 
       - name: 收集产物
         run: |
           mkdir -p /tmp/out
-          cp bin/targets/mediatek/filogic/*cudy* /tmp/out/ || {
-            echo "没有固件产物"; exit 1; }
+          MDIR=bin/targets/mediatek/filogic
+          cp "$MDIR"/*cudy* /tmp/out/ || { echo '没有固件产物'; exit 1; }
+          # 打包整个包仓库（含全部 kmod），这是刷完机后自由装包的关键
+          tar -C "$MDIR" -I 'zstd -19 -T0' \
+            -cf /tmp/out/packages.tar.zst packages
           ls -lh /tmp/out/
+          echo "固件文件: $(find /tmp/out -maxdepth 1 -name '*cudy*' | wc -l) 个"
+          echo "包仓库: $(find "$MDIR/packages" -name '*.ipk' | wc -l) 个 ipk"
 
       - name: 构建信息
         run: |
