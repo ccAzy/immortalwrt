@@ -236,74 +236,96 @@ jobs:
       # 6.6.133 稳定分支已包含其中部分改动，导致补丁靠 fuzz 硬打、
       # 打到 999-1722 的 hunk #4 就崩。这是上游补丁与新内核的冲突，
       # 不是我们的错。这里做成自愈：打不上的补丁移走、重试，最多 5 个。
-      - name: 先编内核并校验 BBRv3
+      # 拆成两步：
+      #   1) prepare —— 只打补丁 + 生成内核 .config，约 2~3 分钟，
+      #      在这里做 BBRv3 的全部断言，出问题立刻知道，不用等全量编译
+      #   2) compile —— 编内核镜像 + 全部模块（ALL_KMODS 下最耗时的一步）
+      #
+      # 注意内核目录必须精确定位到目标树：
+      #   build_dir/target-<arch>_musl/linux-mediatek_filogic/linux-6.6.133
+      # 不能用 -name 'linux-6.6.*' 裸找，否则会先命中工具链里的
+      # build_dir/toolchain-..._musl/linux-6.6.133（那份是内核头文件的
+      # 副本，.config 里没有 BBR 选项，会造成误判）。
+      - name: 内核准备并校验 BBRv3
         run: |
           export PATH="/usr/lib/ccache:$PATH"
           mkdir -p /tmp/skipped-patches
           ok=0
           for round in 1 2 3 4 5; do
-            echo "=== 内核编译第 $round 轮 ==="
-            if make target/linux/compile -j"$(nproc)" V=s \
-                 > /tmp/kbuild.log 2>&1; then
+            echo "=== 内核准备第 $round 轮 ==="
+            if make target/linux/prepare -j"$(nproc)" V=s \
+                 > /tmp/kprep.log 2>&1; then
               ok=1; break
             fi
-            # 只有日志里明确出现 "Patch failed!" 才算补丁问题
-            # 早先拿「日志里最后一个 .patch」当罪魁，会把编译错误
-            # 误判成补丁失败，一层层跳掉本来能用的补丁
             FAILPAT='Patch failed!|out of [0-9]+ hunks? FAILED'
-            if ! grep -qE "$FAILPAT" /tmp/kbuild.log; then
+            if ! grep -qE "$FAILPAT" /tmp/kprep.log; then
               echo '不是补丁问题（无 Patch failed），最后 60 行：'
-              tail -60 /tmp/kbuild.log
+              tail -60 /tmp/kprep.log
               exit 1
             fi
-            P=$(grep -o '/[^ ]*\.patch' /tmp/kbuild.log | tail -1)
+            P=$(grep -o '/[^ ]*\.patch' /tmp/kprep.log | tail -1)
             if [ -z "$P" ] || [ ! -f "$P" ]; then
               echo '补丁失败但取不到路径，最后 60 行：'
-              tail -60 /tmp/kbuild.log
+              tail -60 /tmp/kprep.log
               exit 1
             fi
             echo "打不上，跳过：$P"
             mv "$P" "/tmp/skipped-patches/$(basename "$P")"
-            rm -rf build_dir/target-*/linux-mediatek_filogic/linux-6.6.133 \
-              || true
+            rm -rf build_dir/target-*/linux-*/linux-6.6.* || true
           done
           if [ "$ok" -ne 1 ]; then
-            echo '连续 5 轮仍有补丁打不上，输出最后 60 行：'
-            tail -60 /tmp/kbuild.log
-            echo '已跳过的补丁：'
-            find /tmp/skipped-patches -maxdepth 1 -type f
+            echo '连续 5 轮仍有补丁打不上，最后 60 行：'
+            tail -60 /tmp/kprep.log
+            find /tmp/skipped-patches -maxdepth 1 -type f || true
             exit 1
           fi
           SP=/tmp/skipped-patches
           skipped=$(find "$SP" -maxdepth 1 -type f 2>/dev/null | wc -l)
           echo "跳过的补丁数: $skipped"
-          find /tmp/skipped-patches -maxdepth 1 -type f 2>/dev/null || true
+          find "$SP" -maxdepth 1 -type f 2>/dev/null || true
 
-          BBR=$(find build_dir -path '*linux-6.6*/net/ipv4/tcp_bbr.c' | head -1)
-          echo "内核源码: $BBR"
-          [ -n "$BBR" ] || { echo '找不到内核源码'; exit 1; }
+          # 精确定位目标内核树
+          KDIR=$(find build_dir -maxdepth 4 -type d \
+            -path '*target-*/linux-*/linux-6.6.*' | head -1)
+          echo "目标内核树: $KDIR"
+          [ -n "$KDIR" ] || { echo '找不到目标内核树'; exit 1; }
+
+          BBR="$KDIR/net/ipv4/tcp_bbr.c"
+          echo "BBR 源码: $BBR"
+          [ -f "$BBR" ] || { echo '找不到 tcp_bbr.c'; exit 1; }
           if ! grep -q 'ecn_alpha' "$BBR"; then
             echo 'BBRv3 补丁没打上'; exit 1
           fi
           echo 'OK  tcp_bbr.c 是 v3 版本'
 
-          KDIR=$(find build_dir -maxdepth 3 -type d \
-            -name 'linux-6.6.*' | head -1)
           KC="$KDIR/.config"
           echo "内核配置: $KC"
-          if grep -q '^CONFIG_TCP_CONG_BBR=m' "$KC"; then
-            echo 'BBR 以模块形式编译'
-            KO=$(find build_dir -name 'tcp_bbr.ko' | head -1)
-            [ -n "$KO" ] || { echo '找不到 tcp_bbr.ko'; exit 1; }
-            ls -l "$KO"
-          elif grep -q '^CONFIG_TCP_CONG_BBR=y' "$KC"; then
-            echo 'BBR 内建进内核'
+          [ -f "$KC" ] || { echo '找不到内核 .config'; exit 1; }
+          if grep -qE '^CONFIG_TCP_CONG_BBR=[ym]' "$KC"; then
+            echo "OK  BBR 已启用: $(grep -E '^CONFIG_TCP_CONG_BBR=' "$KC")"
           else
-            echo 'BBR 未编译（既非 y 也非 m）'; exit 1
+            echo 'BBR 未启用（既非 y 也非 m）'
+            grep -E 'TCP_CONG_BBR|DEFAULT_TCP_CONG' "$KC" || true
+            exit 1
           fi
           grep -q 'tcp_congestion_control=bbr' files/etc/sysctl.conf || {
             echo 'sysctl 未设置 bbr'; exit 1; }
-          echo 'OK  BBRv3 源码 + 内核启用 + 开机 sysctl'
+          echo 'OK  BBRv3 源码 + 内核配置 + 开机 sysctl 三项齐备'
+
+      - name: 编译内核与全部模块
+        run: |
+          export PATH="/usr/lib/ccache:$PATH"
+          make target/linux/compile -j"$(nproc)" V=s
+          KDIR=$(find build_dir -maxdepth 4 -type d \
+            -path '*target-*/linux-*/linux-6.6.*' | head -1)
+          KO=$(find "$KDIR" -name 'tcp_bbr.ko' 2>/dev/null | head -1)
+          if [ -n "$KO" ]; then
+            echo "OK  tcp_bbr.ko: $(stat -c%s "$KO") 字节"
+          elif grep -qE '^CONFIG_TCP_CONG_BBR=y' "$KDIR/.config"; then
+            echo 'OK  BBR 内建进内核（无 .ko，正常）'
+          else
+            echo '找不到 tcp_bbr.ko 且非内建'; exit 1
+          fi
 
       - name: 编译固件
         run: |
