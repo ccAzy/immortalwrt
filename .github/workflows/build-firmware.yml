@@ -171,6 +171,17 @@ jobs:
           echo '--- sysctl ---'; cat files/etc/sysctl.conf
           echo '--- opkg arch ---'; cat files/etc/opkg/arch.conf
 
+      # 这个 fork 是在 Windows 上创建/提交的，git 索引里 556 个脚本的
+      # mode 被存成了 100644（无执行位），导致 ./scripts/feeds 直接
+      # Permission denied (exit 126)。这里在构建前统一补回执行位。
+      - name: 修复执行位
+        run: |
+          chmod +x scripts/feeds 2>/dev/null || true
+          find scripts tools -type f -exec chmod +x {} \; 2>/dev/null || true
+          find . -maxdepth 2 -name '*.sh' \
+            -exec chmod +x {} \; 2>/dev/null || true
+          ls -l scripts/feeds
+
       - name: 更新 feeds
         run: |
           ./scripts/feeds update -a
