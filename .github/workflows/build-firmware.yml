@@ -223,20 +223,17 @@ jobs:
           ./scripts/feeds install -a
           # kenzok8_small 的 luci-app-fchomo 有递归依赖 bug，必删
           rm -rf feeds/kenzok8_small/luci-app-fchomo
+          # feeds 装完后必须用完整包元数据重新解析 .config。
+          # 原因：第 13 步写 .config 时 feeds 还没装，像 libwebsockets-full
+          # 这种来自 feeds 的符号当时不存在，会被 kconfig 当未知项丢掉。
+          #
+          # 但 make defconfig 本身在这套环境里不稳定：#143 实测它会把
+          # adblock-fast / luci-app-adblock-fast / luci-theme-argon 三个
+          # 原本 =y 的包打成 is not set（这三个包符号存在、没有 depends，
+          # 属于 kconfig 自身行为异常）。所以不能只跑一次就信它，
+          # 必须跑完检查、缺了补回去再跑，最多三轮收敛。
+          echo '--- feeds 装完，重新解析 .config（带自愈）---'
 
-          # ---- 必须在这里重新解析一次 .config ----
-          # 第 12 步写 .config 时 feeds 还没装，libwebsockets-full 这类
-          # 来自 feeds 的符号当时还不存在，会被 kconfig 当未知项直接丢掉。
-          # 等 feeds 装好符号出现，.config 里已经没有那行，于是回落到
-          # 默认变体 libwebsockets-openssl（无 libuv）→ ttyd 配置阶段 FATAL。
-          # #142 实测就死在这。
-          echo '--- feeds 装完，重新解析 .config（非交互）---'
-          make defconfig </dev/null
-
-          echo '--- 重新解析后复核包清单 ---'
-          fail=0
-
-          # 必须在的包（逐行拼接，避免超长行）
           req="CONFIG_PACKAGE_adblock-fast"
           req="$req CONFIG_PACKAGE_luci-app-adblock-fast"
           req="$req CONFIG_PACKAGE_luci-theme-argon"
@@ -244,11 +241,34 @@ jobs:
           req="$req CONFIG_PACKAGE_luci-app-vantage"
           req="$req CONFIG_PACKAGE_kmod-tcp-bbr"
           req="$req CONFIG_PACKAGE_libwebsockets-full"
+
+          for attempt in 1 2 3; do
+            make defconfig </dev/null
+            miss=0
+            for s in $req; do
+              if ! grep -q "^${s}=y" .config; then
+                # 追加到文件末尾：kconfig 对同名符号取最后一次赋值
+                echo "CONFIG_PACKAGE_${s#CONFIG_PACKAGE_}=y" >> .config
+                echo "  第 $attempt 轮补回: $s"
+                miss=$((miss + 1))
+              fi
+            done
+            echo "第 $attempt 轮解析完成，补回 $miss 个符号"
+            [ "$miss" -eq 0 ] && break
+            if [ "$attempt" -eq 3 ]; then
+              echo "三轮仍无法收敛"
+              for s in $req; do grep -q "^${s}=y" .config || echo "  缺 $s"; done
+              exit 1
+            fi
+          done
+
+          echo '--- 最终复核 ---'
+          fail=0
           for s in $req; do
             if grep -q "^${s}=y" .config; then
               echo "  OK   $s"
             else
-              echo "  MISS $s 解析后被丢了"; fail=1
+              echo "  MISS $s"; fail=1
             fi
           done
 
@@ -263,7 +283,7 @@ jobs:
             fi
           done
 
-          # 必须仍然关闭的 kmod（ALL_KMODS 会顶回来）
+          # 必须仍然关闭的 kmod（ALL_KMODS 会把它们顶回来）
           mustoff="kmod-sprd_pcie kmod-pcie_mhi_fb"
           mustoff="$mustoff kmod-qmi_wwan_f kmod-qmi_wwan_m"
           mustoff="$mustoff kmod-qmi_wwan_q kmod-gobinet"
