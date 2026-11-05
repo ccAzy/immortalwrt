@@ -137,7 +137,11 @@ jobs:
           fail=0
           echo "--- 必须有 ---"
           for s in CONFIG_PACKAGE_adblock-fast \
-                   CONFIG_PACKAGE_luci-app-adblock-fast; do
+                   CONFIG_PACKAGE_luci-app-adblock-fast \
+                   CONFIG_PACKAGE_luci-theme-argon \
+                   CONFIG_PACKAGE_luci-theme-vantage \
+                   CONFIG_PACKAGE_luci-app-vantage \
+                   CONFIG_PACKAGE_kmod-tcp-bbr; do
             if grep -q "^${s}=y" .config; then
               echo "  OK   $s"
             else
@@ -298,19 +302,11 @@ jobs:
           fi
           echo 'OK  tcp_bbr.c 是 v3 版本'
 
-          KC="$KDIR/.config"
-          echo "内核配置: $KC"
-          [ -f "$KC" ] || { echo '找不到内核 .config'; exit 1; }
-          if grep -qE '^CONFIG_TCP_CONG_BBR=[ym]' "$KC"; then
-            echo "OK  BBR 已启用: $(grep -E '^CONFIG_TCP_CONG_BBR=' "$KC")"
-          else
-            echo 'BBR 未启用（既非 y 也非 m）'
-            grep -E 'TCP_CONG_BBR|DEFAULT_TCP_CONG' "$KC" || true
-            exit 1
-          fi
+          # 此时内核 .config 还没生成（prepare 只打补丁），
+          # 配置断言放到编译之后，这里只确认源码与开机参数
           grep -q 'tcp_congestion_control=bbr' files/etc/sysctl.conf || {
             echo 'sysctl 未设置 bbr'; exit 1; }
-          echo 'OK  BBRv3 源码 + 内核配置 + 开机 sysctl 三项齐备'
+          echo 'OK  BBRv3 源码已就位 + 开机 sysctl 已设置'
 
       - name: 编译内核与全部模块
         run: |
@@ -318,6 +314,14 @@ jobs:
           make target/linux/compile -j"$(nproc)" V=s
           KDIR=$(find build_dir -maxdepth 4 -type d \
             -path '*target-*/linux-*/linux-6.6.*' | head -1)
+          KC="$KDIR/.config"
+          if grep -qE '^CONFIG_TCP_CONG_BBR=[ym]' "$KC" 2>/dev/null; then
+            echo "OK  内核已启用 BBR: $(grep -E '^CONFIG_TCP_CONG_BBR=' "$KC")"
+          else
+            echo 'BBR 未启用（既非 y 也非 m）'
+            grep -E 'TCP_CONG_BBR|DEFAULT_TCP_CONG' "$KC" 2>/dev/null || true
+            exit 1
+          fi
           KO=$(find "$KDIR" -name 'tcp_bbr.ko' 2>/dev/null | head -1)
           if [ -n "$KO" ]; then
             echo "OK  tcp_bbr.ko: $(stat -c%s "$KO") 字节"
