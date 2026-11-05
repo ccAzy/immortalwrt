@@ -1,0 +1,20 @@
+#!/bin/sh
+# 默认主题钉死为 Argon。
+#
+# 原因：luci-theme-argon 和 luci-theme-vantage 都自带
+# /etc/uci-defaults/30_luci-theme-<名字>，都会写 luci.main.mediaurlbase。
+# uci-defaults 按文件名排序执行，"argon" < "vantage"，所以不加干预时
+# 最终生效的是 Vantage。这个脚本排在 99，最后执行，把默认改回 Argon。
+#
+# Vantage 仍然安装并注册在 LuCI（系统 → 系统 → 语言和界面）里，
+# 想试随时切过去；切回来也行。
+#
+# 24.10 上 Vantage 的 Wi-Fi 页与面板的 radio/client 磁贴上游注明未测，
+# 这台是 MTK 闭源无线驱动，所以默认不冒险。
+
+uci -q set luci.themes.Argon=/luci-static/argon
+uci -q set luci.themes.Vantage=/luci-static/vantage
+uci -q set luci.main.mediaurlbase=/luci-static/argon
+uci -q commit luci
+
+exit 0
