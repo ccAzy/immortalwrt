@@ -216,6 +216,17 @@ jobs:
           export PATH="/usr/lib/ccache:$PATH"
           make tools/compile -j"$(nproc)" V=s
 
+      # 内核的 Kconfig.include 会检查交叉链接器
+      # aarch64-openwrt-linux-musl-ld 是否存在，这由 toolchain/compile
+      # 产出。只编 tools 还不够，会把内核步骤卡在
+      #   scripts/Kconfig.include:41: linker '...-ld' not found
+      # 工具链是本流程里最耗时的一块（4 核约 30~45 分钟），
+      # 编完会随 staging_dir 缓存留下来，下次运行直接命中。
+      - name: 编交叉工具链
+        run: |
+          export PATH="/usr/lib/ccache:$PATH"
+          make toolchain/compile -j"$(nproc)" V=s
+
       # 先单独编内核：BBRv3 一旦编不过，10 分钟内就暴露，
       # 不用等两小时整套编完才失败。
       # 先单独编内核：BBRv3 一旦编不过，10 分钟内就暴露，
@@ -366,28 +377,28 @@ jobs:
           files: /tmp/out/*
 
       - name: 保存 ccache
-        if: success()
+        if: always()
         uses: actions/cache/save@v5
         with:
           path: .ccache
           key: pv-ccache-${{ runner.os }}-${{ steps.seed.outputs.hash }}
 
       - name: 保存 dl
-        if: success()
+        if: always()
         uses: actions/cache/save@v5
         with:
           path: dl
           key: pv-dl-${{ runner.os }}-${{ steps.seed.outputs.hash }}
 
       - name: 保存工具链
-        if: success()
+        if: always()
         uses: actions/cache/save@v5
         with:
           path: staging_dir
           key: pv-toolchain-${{ runner.os }}-${{ steps.seed.outputs.hash }}
 
       - name: 保存 build_dir
-        if: success()
+        if: always()
         uses: actions/cache/save@v5
         with:
           path: build_dir
