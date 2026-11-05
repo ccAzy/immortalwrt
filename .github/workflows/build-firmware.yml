@@ -207,6 +207,15 @@ jobs:
             || make -j"$(nproc)" download V=s \
             || make -j1 download V=s
 
+      # 内核的 kconfig 阶段要调用 staging_dir/host/bin/m4、flex 等，
+      # 这些由 tools/compile 产出。完整 make 会自动先编工具，但直接
+      # 跑 target/linux/compile 不会 —— 少了这步会死在
+      # "flex: fatal internal error, exec of .../host/bin/m4 failed"。
+      - name: 先编主机工具
+        run: |
+          export PATH="/usr/lib/ccache:$PATH"
+          make tools/compile -j"$(nproc)" V=s
+
       # 先单独编内核：BBRv3 一旦编不过，10 分钟内就暴露，
       # 不用等两小时整套编完才失败。
       # 先单独编内核：BBRv3 一旦编不过，10 分钟内就暴露，
@@ -227,10 +236,19 @@ jobs:
                  > /tmp/kbuild.log 2>&1; then
               ok=1; break
             fi
+            # 只有日志里明确出现 "Patch failed!" 才算补丁问题
+            # 早先拿「日志里最后一个 .patch」当罪魁，会把编译错误
+            # 误判成补丁失败，一层层跳掉本来能用的补丁
+            FAILPAT='Patch failed!|out of [0-9]+ hunks? FAILED'
+            if ! grep -qE "$FAILPAT" /tmp/kbuild.log; then
+              echo '不是补丁问题（无 Patch failed），最后 60 行：'
+              tail -60 /tmp/kbuild.log
+              exit 1
+            fi
             P=$(grep -o '/[^ ]*\.patch' /tmp/kbuild.log | tail -1)
             if [ -z "$P" ] || [ ! -f "$P" ]; then
-              echo '不是补丁问题，输出最后 40 行：'
-              tail -40 /tmp/kbuild.log
+              echo '补丁失败但取不到路径，最后 60 行：'
+              tail -60 /tmp/kbuild.log
               exit 1
             fi
             echo "打不上，跳过：$P"
