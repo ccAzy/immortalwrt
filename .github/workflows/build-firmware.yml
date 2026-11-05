@@ -235,7 +235,8 @@ jobs:
             fi
             echo "打不上，跳过：$P"
             mv "$P" "/tmp/skipped-patches/$(basename "$P")"
-            rm -rf build_dir/target-*/linux-mediatek_filogic/linux-6.6.133 || true
+            rm -rf build_dir/target-*/linux-mediatek_filogic/linux-6.6.133 \
+              || true
           done
           if [ "$ok" -ne 1 ]; then
             echo '连续 5 轮仍有补丁打不上，输出最后 60 行：'
