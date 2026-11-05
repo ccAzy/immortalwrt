@@ -8,34 +8,68 @@
 #   999-1720  75 行里 38 行含 CR  -> 继续污染
 #   999-1722  Hunk #4 FAILED at 1517  -> 内核编译中止
 #
-# 在 CI 的临时副本上跑，不影响仓库内容。
+# 处理范围只限「文本型、且会被构建过程读取」的文件：
+#   *.patch *.sh *.mk *.dts *.dtsi Kconfig
+# 其余一律不碰。package/mtk 下的 *.dat / *.bin 是二进制，sed 会把它们
+# 改坏；MTK 驱动自带的 *.txt/*.readme/*.h 是厂商原样，C 编译器也接受
+# CRLF，不需要动。
+#
+# 检测不用 grep：MSYS / git-bash 的 grep 会按文本模式吞掉 CR，
+# 本地测和 CI 测结果不一致。这里改用字节数对比：
+#   tr -d '\r' 后的字节数 < 原字节数  =>  含 CR
+# 这个方法在 Windows 和 Linux 上行为一致。
 
 set -e
 
 ROOT="${1:-.}"
-CR=$(printf '\r')
+WORK=$(mktemp -d)
 
-count_cr() {
-	grep -rlI -- "$CR" \
-		"$ROOT/target" "$ROOT/package" "$ROOT/toolchain" 2>/dev/null | wc -l
-}
-
-echo "归一化前含 CR 的文件: $(count_cr)"
+cleanup() { rm -rf "$WORK"; }
+trap cleanup EXIT
 
 find "$ROOT/target" "$ROOT/package" "$ROOT/toolchain" -type f \
 	\( -name '*.patch' -o -name '*.sh' -o -name '*.mk' \
 	   -o -name '*.dts' -o -name '*.dtsi' -o -name 'Kconfig' \) \
-	-exec sed -i "s/${CR}\$//" {} + 2>/dev/null || true
+	-print0 > "$WORK/all" 2>/dev/null || true
 
-left=$(count_cr)
-echo "归一化后含 CR 的文件: $left"
+echo "纳入处理范围的文件: $(tr -cd '\0' < "$WORK/all" | wc -c)"
 
-# 硬校验：还有 CR 就中止，避免再出现"补丁静默打偏"这种难查的失败
-if [ "$left" -ne 0 ]; then
-	echo "仍有 $left 个文件含 CR，构建中止"
-	grep -rlI -- "$CR" \
-		"$ROOT/target" "$ROOT/package" "$ROOT/toolchain" 2>/dev/null | head -20
+# 逐文件：含 CR 就就地删掉行尾 CR
+: > "$WORK/before"
+xargs -0 -r sh -c '
+	work=$1; shift
+	for f in "$@"; do
+		size=$(wc -c < "$f")
+		clean=$(tr -d "\r" < "$f" | wc -c)
+		if [ "$size" -ne "$clean" ]; then
+			printf "%s\n" "$f" >> "$work/before"
+			sed -i "s/\r\$//" "$f"
+		fi
+	done
+' _ "$WORK" < "$WORK/all"
+
+echo "归一化前含 CR: $(wc -l < "$WORK/before")"
+
+# 复查同一批文件
+: > "$WORK/left"
+xargs -0 -r sh -c '
+	work=$1; shift
+	for f in "$@"; do
+		size=$(wc -c < "$f")
+		clean=$(tr -d "\r" < "$f" | wc -c)
+		if [ "$size" -ne "$clean" ]; then
+			printf "%s\n" "$f" >> "$work/left"
+		fi
+	done
+' _ "$WORK" < "$WORK/all"
+
+after=$(wc -l < "$WORK/left")
+echo "归一化后含 CR: $after"
+
+if [ "$after" -ne 0 ]; then
+	echo "以下文件仍有 CR，构建中止："
+	head -20 "$WORK/left"
 	exit 1
 fi
 
-echo "OK 换行已归一化为 LF"
+echo "OK 补丁与脚本的换行已归一化为 LF"
