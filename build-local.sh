@@ -264,6 +264,20 @@ stage_feeds() {
     tail -20 logs/feeds-update.log | cut -c1-200
     exit 1
   }
+  # 第三方 feeds 固定到 configs/feeds-pins 里的 commit。
+  # scripts/feeds 只能按分支 clone，所以在 update 之后单独 fetch 再 checkout。
+  if [ -f configs/feeds-pins ]; then
+    while read -r name sha; do
+      case "$name" in \#*|"") continue ;; esac
+      [ -d "feeds/$name" ] || { echo "  feeds/$name 不存在，跳过 pin"; continue; }
+      if ! git -C "feeds/$name" fetch -q --depth 1 origin "$sha"; then
+        echo "  pin 失败: feeds/$name $sha"; exit 1
+      fi
+      git -C "feeds/$name" checkout -q FETCH_HEAD
+      log "  pin feeds/$name -> $(git -C feeds/$name rev-parse --short HEAD)"
+    done <configs/feeds-pins
+  fi
+
   retry 3 ./scripts/feeds install -a >logs/feeds-install.log 2>&1 || {
     echo 'feeds install 连续 3 次失败，末尾 20 行：'
     tail -20 logs/feeds-install.log | cut -c1-200

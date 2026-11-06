@@ -56,7 +56,7 @@ jobs:
       - name: 生成缓存种子
         id: seed
         run: |
-          H=$(cat feeds.conf.default \
+          H=$(cat feeds.conf.default configs/feeds-pins \
                 defconfig/mt7981-ax3000.config \
                 target/linux/mediatek/filogic/config-6.6 \
                 target/linux/generic/hack-6.6/602-net-tcp_bbr-bbrv3.patch \
@@ -284,6 +284,20 @@ jobs:
       - name: 更新 feeds
         run: |
           ./scripts/feeds update -a
+          # 第三方 feeds 固定到 configs/feeds-pins
+          # scripts/feeds 只能用分支 clone，所以在 update 之后单独 fetch 再 checkout
+          if [ -f configs/feeds-pins ]; then
+            while read -r name sha; do
+              case "$name" in \#*|"") continue ;; esac
+              [ -d "feeds/$name" ] || continue
+              if ! git -C "feeds/$name" fetch -q --depth 1 origin "$sha"; then
+                echo "pin 失败: $name $sha"; exit 1
+              fi
+              git -C "feeds/$name" checkout -q FETCH_HEAD
+              short=$(git -C "feeds/$name" rev-parse --short HEAD)
+              echo "pin feeds/$name -> $short"
+            done <configs/feeds-pins
+          fi
           ./scripts/feeds install -a
           # kenzok8_small 的 luci-app-fchomo 有递归依赖 bug，必删
           rm -rf feeds/kenzok8_small/luci-app-fchomo

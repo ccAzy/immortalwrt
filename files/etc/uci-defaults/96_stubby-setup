@@ -15,7 +15,18 @@ uci set stubby.global.trigger='timed'
 uci set stubby.global.triggerdelay='30'
 uci set stubby.global.tls_authentication='1'
 uci set stubby.global.tls_query_padding_blocksize='128'
-uci set stubby.global.round_robin_upstreams='1'
+uci set stubby.global.round_robin_upstreams='0'
+
+# uci 里的 resolver 列表平时用不到（manual=1 走手写 yml），
+# 但它是个地雷：一旦 manual 被改回 0，stubby 会改用 uci 生成配置。
+# 包默认值全是 Cloudflare（国内 DoT 不通），所以这里一并写成实测可用的三家。
+while uci -q delete stubby.@resolver[0]; do :; done
+for pair in "223.5.5.5:dns.alidns.com" "223.6.6.6:dns.alidns.com" "120.53.53.53:dot.pub"; do
+    ip=${pair%%:*}; name=${pair##*:}
+    idx=$(uci add stubby resolver)
+    uci set stubby.$idx.address="$ip"
+    uci set stubby.$idx.tls_auth_name="$name"
+done
 uci commit stubby
 
 # 手写 yml 若被包默认文件覆盖过，从备份恢复（files/ 机制通常已覆盖到位）

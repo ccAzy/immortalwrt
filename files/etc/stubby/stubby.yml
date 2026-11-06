@@ -1,14 +1,19 @@
 # stubby 手写配置（配合 uci stubby.global.manual='1'）
 #
-# 上游选择依据（2026-11-06 实测 tcping 853 端口）：
-#   223.5.5.5   阿里   9.53 ms   ✅
-#   223.6.6.6   阿里备 7.42 ms   ✅
-#   1.1.1.1     CF    37.57 ms   ✅（443 被运营商干扰，但 853 通）
-#   119.29.29.29 腾讯          ❌ 不通
-#   8.8.8.8 / 9.9.9.9          ❌ 不通
+# 上游选择依据（2026-11-06 实测：真 TLS 握手 + 真查询，不是只 tcping 853）：
+#   223.5.5.5     阿里     DoT 853 TLS1.3 证书OK  查询 GOOD 1~2s   ✅
+#   223.6.6.6     阿里备   DoT 853 通                              ✅
+#   120.53.53.53  腾讯     DoT 853 TLS1.2 *.doh.pub OK 查询 GOOD  ✅（dot.pub 解析出的端点）
 #
-# round_robin_upstreams=0：按顺序优先用阿里，失败才切 Cloudflare。
-# 阿里有 ECS 支持、延迟最低；Cloudflare 隐私更好但绕路。
+# —— 实测不可用，别再加回来 ——
+#   119.29.29.29  腾讯传统DNS，只有 tcp/53 没有 DoT，且本机到它 tcp/53 首连 2.1s
+#   1.1.1.1       CF 853 TCP 靠 SYN 重传才建连（一半请求 1.05s），TLS 握手完不成；
+#                  DoH 443 也不通：1.1.1.1 http=000 8s 超时，
+#                  cloudflare-dns.com 0.46s 被重置
+#   1.0.0.1 / 8.8.8.8 / 9.9.9.9  853 全部失败
+#
+# round_robin_upstreams=0：按顺序优先用阿里，失败切阿里备，再切腾讯。
+# 阿里有 ECS 支持、延迟最低；腾讯作为第二家运营商生态兜底。
 #
 # 注意：这两项必须同时存在，缺一个就 YAML 解析失败：
 #   - dns_transport_list
@@ -34,5 +39,5 @@ upstream_recursive_servers:
     tls_auth_name: "dns.alidns.com"
   - address_data: 223.6.6.6
     tls_auth_name: "dns.alidns.com"
-  - address_data: 1.1.1.1
-    tls_auth_name: "cloudflare-dns.com"
+  - address_data: 120.53.53.53
+    tls_auth_name: "dot.pub"

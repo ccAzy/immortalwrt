@@ -1,0 +1,6 @@
+# 第三方 feeds 固定到具体 commit。
+# feeds.conf.default 里只能写分支名（写 40 位 commit 会报
+# "Could not find remote branch <sha>"，因为 scripts/feeds 用 git clone -b 分支）
+# 所以固定点放在这里，build-local.sh 与 CI 在 feeds update 之后按此 checkout。
+kenzok8 d9cbdc0a69ee7f0fec70117217fd671862b07f83
+kenzok8_small 862e66fa2a05f9fa7ee602d7b061fe436e86448d

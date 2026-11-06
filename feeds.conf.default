@@ -2,5 +2,6 @@ src-git packages https://github.com/immortalwrt/packages.git;openwrt-24.10
 src-git luci https://github.com/immortalwrt/luci.git;openwrt-24.10
 src-git routing https://github.com/openwrt/routing.git;openwrt-24.10
 src-git telephony https://github.com/openwrt/telephony.git;openwrt-24.10
+# 第三方源固定在 configs/feeds-pins（feeds.conf 只能写分支，写 commit 会 clone 失败）
 src-git kenzok8 https://github.com/kenzok8/openwrt-packages.git;master
 src-git kenzok8_small https://github.com/kenzok8/small.git;master
