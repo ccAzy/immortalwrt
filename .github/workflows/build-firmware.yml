@@ -651,15 +651,19 @@ jobs:
         run: |
           mkdir -p /tmp/out
           MDIR=bin/targets/mediatek/filogic
-          # 产物改成一看就懂的通俗名字：TR3000-<哪个版本>-刷机包/救砖包.bin
+          # 产物名字：TR3000-<版本>-upgrade.bin / -recovery.bin（只能 ASCII）
           for d in ${{ steps.variants.outputs.devs }}; do
+            # Release 资产名只能是 ASCII：GitHub 会把中文换成点，
+            # TR3000-112M-ubootmod-救砖包.bin 传上去就变成 ...-ubootmod-.bin，
+            # 随后 action 按原名回查资产 404 → 整个 release 卡在 Draft 并报失败。
             case "$d" in
-              cudy_tr3000-v1)          TAG="64M-原厂uboot" ;;
+              cudy_tr3000-v1)          TAG="64M-original-uboot" ;;
               cudy_tr3000-v1-ubootmod) TAG="112M-ubootmod" ;;
-              cudy_tr3000-v1-256mb)    TAG="256M-大闪存" ;;
+              cudy_tr3000-v1-256mb)    TAG="256M-256mb" ;;
               *) echo "未知设备: $d"; exit 1 ;;
             esac
-            for pair in "squashfs-sysupgrade:刷机包" "initramfs-kernel:救砖包"; do
+            for pair in "squashfs-sysupgrade:upgrade" \
+                        "initramfs-kernel:recovery"; do
               src="$MDIR/immortalwrt-mediatek-filogic-${d}-${pair%%:*}.bin"
               dst="/tmp/out/TR3000-${TAG}-${pair##*:}.bin"
               [ -f "$src" ] || { echo "缺产物: $src"; exit 1; }
@@ -699,10 +703,11 @@ jobs:
             **这次编的版本**：${{ steps.variants.outputs.label }}
             （${{ steps.variants.outputs.devs }}）
 
-            **文件名怎么看**
-            - `TR3000-<版本>-刷机包.bin`：日常升级用这个
-            - `TR3000-<版本>-救砖包.bin`：系统起不来时用
-            - `SHA256SUMS.txt`：校验值
+            **文件名怎么看**（GitHub 只允许 ASCII 资产名，所以用英文）
+            - `TR3000-<版本>-upgrade.bin` = 刷机包，日常升级用这个
+            - `TR3000-<版本>-recovery.bin` = 救砖包，系统起不来时用
+            - `SHA256SUMS.txt` = 校验值
+            - `packages.tar.zst` = 本地包仓库（刷机用不到）
 
             **构建信息**
             - 编号 ${{ github.run_number }} / 触发 ${{ github.event_name }}
