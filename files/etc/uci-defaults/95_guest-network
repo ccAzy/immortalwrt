@@ -1,0 +1,96 @@
+#!/bin/sh
+# 访客网络骨架（首次启动建立）
+#
+# 只建「结构」，WiFi 的 SSID/密码用随机值，
+# 这样固件分享给别人时不会把你的密码带出去，对方刷完也有个可用的隔离网络。
+#
+# 结构：
+#   br-guest 桥（无物理口，只有 WiFi 挂上来）
+#   192.168.7.0/24，DHCP 100-249
+#   firewall zone=guest  input=REJECT  forward=REJECT  output=ACCEPT
+#   只放行 DHCP(67) + DNS(53)，forward 只到 wan（能上网、进不了内网）
+#
+# 改法：LuCI → 网络 → 无线，编辑 Guest 这个 SSID。
+
+[ -f /etc/config/network ] || exit 0
+
+# 幂等：已经配过就跳过
+[ -n "$(uci -q get network.guest.ipaddr)" ] && exit 0
+
+# ── 访客桥与接口 ────────────────────────────────────
+uci set network.br_guest='device'
+uci set network.br_guest.type='bridge'
+uci set network.br_guest.name='br-guest'
+
+uci set network.guest='interface'
+uci set network.guest.proto='static'
+uci set network.guest.device='br-guest'
+uci set network.guest.ipaddr='192.168.7.1'
+uci set network.guest.netmask='255.255.255.0'
+
+# ── 访客 DHCP ───────────────────────────────────────
+uci set dhcp.guest='dhcp'
+uci set dhcp.guest.interface='guest'
+uci set dhcp.guest.start='100'
+uci set dhcp.guest.limit='150'
+uci set dhcp.guest.leasetime='12h'
+
+# ── 访客防火墙 zone ─────────────────────────────────
+uci -q delete firewall.guest
+uci set firewall.guest='zone'
+uci set firewall.guest.name='guest'
+uci set firewall.guest.network='guest'
+uci set firewall.guest.input='REJECT'
+uci set firewall.guest.output='ACCEPT'
+uci set firewall.guest.forward='REJECT'
+
+uci -q delete firewall.guest_wan
+uci set firewall.guest_wan='forwarding'
+uci set firewall.guest_wan.src='guest'
+uci set firewall.guest_wan.dest='wan'
+
+# 这两条不写的话，客户端连上 WiFi 也拿不到 IP / 解析不了域名
+uci -q delete firewall.guest_dhcp
+uci set firewall.guest_dhcp='rule'
+uci set firewall.guest_dhcp.name='Allow-Guest-DHCP'
+uci set firewall.guest_dhcp.src='guest'
+uci set firewall.guest_dhcp.proto='udp'
+uci set firewall.guest_dhcp.dest_port='67'
+uci set firewall.guest_dhcp.target='ACCEPT'
+
+uci -q delete firewall.guest_dns
+uci set firewall.guest_dns='rule'
+uci set firewall.guest_dns.name='Allow-Guest-DNS'
+uci set firewall.guest_dns.src='guest'
+uci set firewall.guest_dns.proto='tcpudp'
+uci set firewall.guest_dns.dest_port='53'
+uci set firewall.guest_dns.target='ACCEPT'
+
+uci commit network
+uci commit dhcp
+uci commit firewall
+
+# ── 访客 WiFi（挂在 5G 射频上，密码随机）────────────
+# 找 5G 那个 wifi-device 的名字（不同机型叫法不同）
+DEV5G=""
+for d in $(uci show wireless | sed -n 's/^wireless\.\([^.]*\)=wifi-device$/\1/p'); do
+    [ "$(uci -q get wireless.$d.band)" = "5g" ] && DEV5G="$d"
+done
+# 没有 5G 就退回第一个射频
+[ -z "$DEV5G" ] && DEV5G=$(uci show wireless | sed -n 's/^wireless\.\([^.]*\)=wifi-device$/\1/p' | head -1)
+
+if [ -n "$DEV5G" ] && [ -z "$(uci -q get wireless.guest_5g)" ]; then
+    KEY=$(head -c 12 /dev/urandom | tr -dc 'a-z0-9' | head -c 10)
+    uci set wireless.guest_5g='wifi-iface'
+    uci set wireless.guest_5g.device="$DEV5G"
+    uci set wireless.guest_5g.network='guest'
+    uci set wireless.guest_5g.mode='ap'
+    uci set wireless.guest_5g.ssid='Guest'
+    uci set wireless.guest_5g.encryption='sae-mixed'
+    uci set wireless.guest_5g.key="$KEY"
+    uci set wireless.guest_5g.isolate='1'
+    uci commit wireless
+    logger -t guest-setup "guest wifi SSID=Guest key=$KEY on $DEV5G"
+fi
+
+exit 0

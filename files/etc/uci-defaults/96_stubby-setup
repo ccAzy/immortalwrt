@@ -1,0 +1,32 @@
+#!/bin/sh
+# 首次启动：stubby + sysctl 延时重放的开机自启
+#
+# stubby 的 init 脚本里有这句：
+#     if [ "$trigger" != "timed" ]; then return 0; fi
+# 所以 trigger 必须是 timed，否则 procd 根本不会拉起它。
+#
+# manual=1 的作用是「不要用 uci 生成配置，用我放在
+# /etc/stubby/stubby.yml 的手写版本」——它和 trigger 是两个独立开关，
+# 只设 manual 不设 trigger 会导致 stubby 完全不启动、5453 无监听，
+# 而 dnsmasq 里还留着 server=127.0.0.1#5453 → 全屋 DNS 超时。
+
+uci set stubby.global.manual='1'
+uci set stubby.global.trigger='timed'
+uci set stubby.global.triggerdelay='30'
+uci set stubby.global.tls_authentication='1'
+uci set stubby.global.tls_query_padding_blocksize='128'
+uci set stubby.global.round_robin_upstreams='1'
+uci commit stubby
+
+# 手写 yml 若被包默认文件覆盖过，从备份恢复（files/ 机制通常已覆盖到位）
+if [ -f /etc/stubby/stubby.yml.default ] && [ ! -s /etc/stubby/stubby.yml ]; then
+    cp /etc/stubby/stubby.yml.default /etc/stubby/stubby.yml
+fi
+
+/etc/init.d/stubby enable >/dev/null 2>&1
+/etc/init.d/stubby start >/dev/null 2>&1
+
+# sysctl 延时重放要建立 S99 链接，否则重启后不生效
+/etc/init.d/zz-sysctl-fix enable >/dev/null 2>&1
+
+exit 0

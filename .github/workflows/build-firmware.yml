@@ -241,10 +241,13 @@ jobs:
               -path "*/root/etc/hotplug.d/*" \
             \) -exec chmod 755 {} + 2>/dev/null || true
 
+          # files/ 里的脚本：not base-files 的 done 用 `sh /etc/rc.local` 执行（644 也行），
+          # 但改了 base-files 或有人用 [ -x ] 判断就会静默不执行 → 统一 755 更稳。
           find files -type f \( \
               -path "*/usr/bin/*" -o \
               -path "*/usr/sbin/*" -o \
-              -path "*/etc/init.d/*" \
+              -path "*/etc/init.d/*" -o \
+              -path "*/etc/rc.local" \
             \) -exec chmod 755 {} + 2>/dev/null || true
 
           # windows 同步过来的文件常是 777，打 ipk 时原样带进固件
@@ -252,6 +255,8 @@ jobs:
             find "$d" -type f -perm 777 2>/dev/null | while read -r f; do
               case "$f" in
                 */etc/init.d/*|*/usr/libexec/rpcd/*|*/usr/bin/*|*/usr/sbin/*)
+                  chmod 755 "$f" ;;
+                */etc/rc.local)
                   chmod 755 "$f" ;;
                 */etc/hotplug.d/*)
                   chmod 755 "$f" ;;

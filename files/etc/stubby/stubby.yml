@@ -1,0 +1,38 @@
+# stubby 手写配置（配合 uci stubby.global.manual='1'）
+#
+# 上游选择依据（2026-11-06 实测 tcping 853 端口）：
+#   223.5.5.5   阿里   9.53 ms   ✅
+#   223.6.6.6   阿里备 7.42 ms   ✅
+#   1.1.1.1     CF    37.57 ms   ✅（443 被运营商干扰，但 853 通）
+#   119.29.29.29 腾讯          ❌ 不通
+#   8.8.8.8 / 9.9.9.9          ❌ 不通
+#
+# round_robin_upstreams=0：按顺序优先用阿里，失败才切 Cloudflare。
+# 阿里有 ECS 支持、延迟最低；Cloudflare 隐私更好但绕路。
+#
+# 注意：这两项必须同时存在，缺一个就 YAML 解析失败：
+#   - dns_transport_list
+#   - listen_addresses
+
+resolution_type: GETDNS_RESOLUTION_STUB
+round_robin_upstreams: 0
+appdata_dir: "/var/lib/stubby"
+trust_anchors_backoff_time: 2500
+tls_authentication: GETDNS_AUTHENTICATION_REQUIRED
+tls_query_padding_blocksize: 128
+edns_client_subnet_private: 1
+idle_timeout: 10000
+
+dns_transport_list:
+  - GETDNS_TRANSPORT_TLS
+
+listen_addresses:
+  - 127.0.0.1@5453
+
+upstream_recursive_servers:
+  - address_data: 223.5.5.5
+    tls_auth_name: "dns.alidns.com"
+  - address_data: 223.6.6.6
+    tls_auth_name: "dns.alidns.com"
+  - address_data: 1.1.1.1
+    tls_auth_name: "cloudflare-dns.com"

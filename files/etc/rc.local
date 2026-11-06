@@ -1,0 +1,52 @@
+#!/bin/sh
+# rc.local —— 开机收尾
+#
+# DoT 两阶段切换，避免开机断网。
+#
+# 背景：stubby 的 init 脚本里有一句
+#           if [ "$trigger" != "timed" ]; then return 0; fi
+#       trigger=manual 时它根本不启动。所以这里显式拉一次，不依赖 trigger。
+#
+# 流程：
+#   1. 先把 dnsmasq 切回运营商 DNS（保证开局一定有网）
+#   2. 后台启动 stubby，等 5453 就绪
+#   3. 就绪后切 DoT；180 秒等不到就保持运营商 DNS，不断网
+
+# ── 第一阶段：先保证有 DNS ──────────────────────────
+uci set dhcp.@dnsmasq[0].noresolv='0'
+uci commit dhcp
+
+# ── 第二阶段：拉起 stubby，就绪后切 DoT ─────────────
+(
+    # 显式启动（trigger 不可靠）
+    /etc/init.d/stubby start >/dev/null 2>&1
+
+    i=0
+    while [ "$i" -lt 180 ]; do
+        if netstat -lnu 2>/dev/null | grep -q ':5453'; then
+            # 再等 2 秒，确保能应答而不是刚绑定端口
+            sleep 2
+            # 实测一次解析，确认真的能用
+            if getdns_query -s @127.0.0.1 -p 5453 www.baidu.com A 2>/dev/null | grep -q 'GETDNS_RESPSTATUS_GOOD'; then
+                uci set dhcp.@dnsmasq[0].noresolv='1'
+                uci -q delete dhcp.@dnsmasq[0].server
+                uci add_list dhcp.@dnsmasq[0].server='127.0.0.1#5453'
+                uci commit dhcp
+                /etc/init.d/dnsmasq restart >/dev/null 2>&1
+                logger -t dot-switch "stubby verified after ${i}s, switched to DoT"
+                exit 0
+            fi
+        fi
+        sleep 5
+        i=$((i + 5))
+    done
+    logger -t dot-switch "timeout after 180s, staying on ISP DNS"
+) &
+
+# ── UDP GRO ─────────────────────────────────────────
+[ -e /proc/net/udp_gro ] && echo 1 > /proc/net/udp_gro 2>/dev/null
+
+# Tailscale 建议：开启 UDP GRO 转发提升吞吐（没装 tailscale 也无害）
+[ -x /usr/sbin/ethtool ] && ethtool -K eth0 rx-udp-gro-forwarding on rx-gro-list off 2>/dev/null
+
+exit 0

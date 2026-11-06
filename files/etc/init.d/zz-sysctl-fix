@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+# sysctl.conf 里的 bbr / conntrack 参数在 S11sysctl 执行时还没生效：
+# 那时 kmod-tcp-bbr 可能尚未加载完成，写入 tcp_congestion_control 被忽略，
+# 之后 mtkhqos(S19) 又会调整部分网络参数（把 rmem/wmem_max 压回约 1MB）。
+#
+# 这里在所有服务起完后（START=99）重放一次，实测有效。
+#
+# 启用方式：由 /etc/uci-defaults/96_stubby-setup 里的
+#   /etc/init.d/zz-sysctl-fix enable
+# 在首次启动时建立 S99 链接。若手动部署，直接跑这句即可。
+
+START=99
+STOP=10
+
+start() {
+	sleep 30
+	/sbin/sysctl -p -e /etc/sysctl.conf >/dev/null 2>&1
+	logger -t zz-sysctlfix "reapplied /etc/sysctl.conf, cc=$(cat /proc/sys/net/ipv4/tcp_congestion_control)"
+}
