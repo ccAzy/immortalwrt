@@ -221,6 +221,58 @@ jobs:
           fi
           echo 'OK  清单内全部脚本执行位就位'
 
+      # 另一类执行位问题，和上面那类不是一回事：package/*/root/ 下的文件在
+      # git 里是 100644（Windows 建仓丢了权限），但装进固件后必须可执行。
+      #
+      # 实测后果：luci-app-turboacc-mtk 的 /usr/libexec/rpcd/luci.turboacc 是 644
+      # → rpcd 只加载可执行插件 → ubus 里没有 luci.turboacc 这个 object
+      # → 页面 5 个 RPC 全部 NotFound → JS 里 features.hasTCPCCA 是 undefined
+      # → features.hasTCPCCA.split(' ') 抛 TypeError → 「网络加速」整页报错。
+      # 同期受影响的还有 luci-app-wrtbwmon，全仓共 21 个文件。
+      #
+      # 这里按路径语义规范化，不靠手工清单维护（清单会漏掉新加的包）。
+      - name: 规范化包内脚本权限
+        run: |
+          find package -type f \( \
+              -path "*/root/etc/init.d/*" -o \
+              -path "*/root/usr/libexec/rpcd/*" -o \
+              -path "*/root/usr/bin/*" -o \
+              -path "*/root/usr/sbin/*" -o \
+              -path "*/root/etc/hotplug.d/*" \
+            \) -exec chmod 755 {} + 2>/dev/null || true
+
+          find files -type f \( \
+              -path "*/usr/bin/*" -o \
+              -path "*/usr/sbin/*" -o \
+              -path "*/etc/init.d/*" \
+            \) -exec chmod 755 {} + 2>/dev/null || true
+
+          # windows 同步过来的文件常是 777，打 ipk 时原样带进固件
+          for d in package files; do
+            find "$d" -type f -perm 777 2>/dev/null | while read -r f; do
+              case "$f" in
+                */etc/init.d/*|*/usr/libexec/rpcd/*|*/usr/bin/*|*/usr/sbin/*)
+                  chmod 755 "$f" ;;
+                */etc/hotplug.d/*)
+                  chmod 755 "$f" ;;
+                *)
+                  chmod 644 "$f" ;;
+              esac
+            done
+          done
+
+          # 只查 libexec（要可执行），不查 acl.d（是 json 数据，应该 644）
+          bad=$(find package files -path "*/libexec/rpcd/*" -type f \
+                  ! -perm -u+x 2>/dev/null)
+          if [ -n "$bad" ]; then
+            echo '❌ 仍有不可执行的 rpcd 插件：'
+            echo "$bad"
+            exit 1
+          fi
+          n=$(find package files -path "*/libexec/rpcd/*" -type f \
+                2>/dev/null | wc -l)
+          echo "OK  $n 个 rpcd 插件全部可执行"
+
       - name: 归一化换行（CRLF -> LF）
         run: sh configs/normalize-lineendings.sh
 
