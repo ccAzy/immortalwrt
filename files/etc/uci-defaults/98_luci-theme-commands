@@ -1,0 +1,39 @@
+#!/bin/sh
+# 注册主题切换命令（2026-11-06）
+#
+# 两条路径共用同一批命令：
+#   1) 「系统 → 主题切换」——自建页面，平铺按钮，点一下即切（推荐）
+#   2) 「系统 → 命令」——luci-app-commands 原生列表，作为兜底入口
+#
+# 命令 id 规则：theme_switch_<主题名小写>
+# 与 www/luci-static/resources/view/theme-switch.js 里的映射保持一致
+# （view 用 name.toLowerCase() 拼 cmdid）。
+#
+# 坑：luci-app-commands 用 parse_args() 把命令串按空格拆成 argv 直接
+# execve，**不经过 shell**。所以这里不能写 "... && ... && ..."，
+# 否则 "&&" 会被当成参数传给 uci，报 Usage 并失败（Code 255）。
+# 因此把链路收敛进 /usr/bin/theme-switch，命令只传主题名。
+
+chmod 755 /usr/bin/theme-switch 2>/dev/null
+
+add_theme_cmd() {
+	local id="$1"
+	local label="$2"
+	local theme="$3"
+	uci -q delete "luci.$id"
+	uci set "luci.$id=command"
+	uci set "luci.$id.name=$label"
+	uci set "luci.$id.command=/usr/bin/theme-switch $theme"
+	uci set "luci.$id.public=1"
+}
+
+add_theme_cmd theme_switch_argon           "切换到 Argon 主题"          argon
+add_theme_cmd theme_switch_aurora          "切换到 Aurora 主题"         aurora
+add_theme_cmd theme_switch_vantage         "切换到 Vantage 主题"        vantage
+add_theme_cmd theme_switch_bootstrap       "切换到 Bootstrap 主题"      bootstrap
+add_theme_cmd theme_switch_bootstrapdark   "切换到 BootstrapDark 主题"  bootstrap-dark
+add_theme_cmd theme_switch_bootstraplight  "切换到 BootstrapLight 主题" bootstrap-light
+
+uci commit luci
+
+exit 0

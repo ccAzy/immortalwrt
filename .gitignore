@@ -13,7 +13,8 @@
 /logs
 /feeds
 /feeds.conf
-/files
+# 上游默认忽略 /files（本机构建临时覆盖），但本仓库的 files/ 是固件定制的一部分：
+# 主题切换命令、默认主题、Aurora 中文 lmo。必须随仓库分发，因此不忽略。
 /target/linux/feeds
 /overlay
 /package/feeds
@@ -39,3 +40,8 @@ git-src
 !/dl/datconf*
 !/dl/mt79*
 !/dl/warp*
+# 构建过程中的临时备份（defconfig/configs 的 .bak-<时间戳>）
+*.bak-*
+*.bak-list.txt
+# 路由器配置备份（含 WiFi 密码 / SSH 密钥，绝不入库）
+router-backup/

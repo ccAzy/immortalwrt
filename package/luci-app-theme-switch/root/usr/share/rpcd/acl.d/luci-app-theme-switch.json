@@ -1,0 +1,12 @@
+{
+	"luci-app-theme-switch": {
+		"description": "Grant access to the theme switcher page",
+		"read": {
+			"uci": [ "luci" ],
+			"file": {
+				"/usr/bin/theme-switch": [ "exec" ]
+			}
+		},
+		"write": {}
+	}
+}

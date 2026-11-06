@@ -1,20 +1,21 @@
 #!/bin/sh
-# 默认主题钉死为 Argon。
+# 默认主题 = Vantage（2026-11-06 按用户要求从 Argon 改为 Vantage）。
 #
-# 原因：luci-theme-argon 和 luci-theme-vantage 都自带
-# /etc/uci-defaults/30_luci-theme-<名字>，都会写 luci.main.mediaurlbase。
-# uci-defaults 按文件名排序执行，"argon" < "vantage"，所以不加干预时
-# 最终生效的是 Vantage。这个脚本排在 99，最后执行，把默认改回 Argon。
+# 背景：luci-theme-argon 和 luci-theme-vantage 都自带
+# /etc/uci-defaults/30_luci-theme-<名字>，各自写 luci.main.mediaurlbase。
+# uci-defaults 按文件名排序执行，"argon" < "vantage"，不加干预时
+# 最终生效的本来就是 Vantage。这个脚本排在 99 最后执行，用来显式钉死选择。
 #
-# Vantage 仍然安装并注册在 LuCI（系统 → 系统 → 语言和界面）里，
-# 想试随时切过去；切回来也行。
+# 当前选择 Vantage：用户在实机上切过去用了一段时间，界面正常。
+# 已知上游注记：24.10 上 Vantage 的 Wi-Fi 页与 radio/client 磁贴「未测」，
+# 而本机是 MTK 闭源无线驱动（mt_wifi mx1e）+ MTK 特有的 mtwifi-cfg 页面，
+# 若发现 Wi-Fi 页显示异常，切回 Argon 即可（系统 → 系统 → 语言和界面）。
 #
-# 24.10 上 Vantage 的 Wi-Fi 页与面板的 radio/client 磁贴上游注明未测，
-# 这台是 MTK 闭源无线驱动，所以默认不冒险。
+# 两个主题都保留在固件里，可随时互切。
 
 uci -q set luci.themes.Argon=/luci-static/argon
 uci -q set luci.themes.Vantage=/luci-static/vantage
-uci -q set luci.main.mediaurlbase=/luci-static/argon
+uci -q set luci.main.mediaurlbase=/luci-static/vantage
 uci -q commit luci
 
 exit 0

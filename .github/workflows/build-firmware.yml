@@ -131,8 +131,15 @@ jobs:
             echo '默认 LAN IP 不是 192.168.6.1'; exit 1; }
 
           cp defconfig/mt7981-ax3000.config .config
-          DEV=CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-v1-ubootmod
-          echo "${DEV}=y" >> .config
+          # 一次编译出 TR3000 三个硬件变体（靠 MULTI_PROFILE + PER_DEVICE_ROOTFS）：
+          #   v1        64 MiB  原厂 uboot（R47）
+          #   v1-ubootmod 112 MiB ubootmod（R47）← 当前在用
+          #   v1-256mb  230 MiB 256MB 硬件版（R103）
+          T=CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE
+          for d in cudy_tr3000-v1 cudy_tr3000-v1-ubootmod \
+                   cudy_tr3000-v1-256mb; do
+            echo "${T}_${d}=y" >> .config
+          done
 
           fail=0
           echo "--- 必须有 ---"
@@ -241,6 +248,33 @@ jobs:
           req="$req CONFIG_PACKAGE_luci-app-vantage"
           req="$req CONFIG_PACKAGE_kmod-tcp-bbr"
           req="$req CONFIG_PACKAGE_libwebsockets-full"
+          # 本次新增的包也纳入自愈：tcpdump/tcping 早就在 defconfig 里却从未
+          # 进过固件，就是被 make defconfig 丢掉的，不纳入会重蹈覆辙。
+          req="$req CONFIG_PACKAGE_luci-theme-aurora"
+          # 注意：i18n 包（luci-i18n-*）不用写 req —— luci.mk 用
+          # LUCI_BUILD_PACKAGES 在编译时自动带出，metadata 里没有它们的
+          # config 块，写进 .config 会被当未知符号丢弃，导致自愈永不收敛。
+          req="$req CONFIG_PACKAGE_luci-app-aurora-config"
+          req="$req CONFIG_PACKAGE_luci-app-theme-switch"
+          req="$req CONFIG_PACKAGE_luci-app-turboacc-mtk"
+          req="$req CONFIG_PACKAGE_kmod-bonding"
+          req="$req CONFIG_PACKAGE_kmod-tls"
+          req="$req CONFIG_PACKAGE_kmod-netlink-diag"
+          req="$req CONFIG_PACKAGE_bash"
+          req="$req CONFIG_PACKAGE_ip-full"
+          req="$req CONFIG_PACKAGE_tcpdump"
+          req="$req CONFIG_PACKAGE_tcping"
+          req="$req CONFIG_PACKAGE_unzip"
+          req="$req CONFIG_PACKAGE_mkf2fs"
+          req="$req CONFIG_PACKAGE_f2fsck"
+          req="$req CONFIG_PACKAGE_libf2fs"
+          req="$req CONFIG_PACKAGE_kmod-usb-net-qmi-wwan"
+          req="$req CONFIG_PACKAGE_kmod-usb-wdm"
+          # 三个设备变体也纳入自愈（make defconfig 同样可能把它们关掉）
+          T=CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE
+          req="$req ${T}_cudy_tr3000-v1"
+          req="$req ${T}_cudy_tr3000-v1-ubootmod"
+          req="$req ${T}_cudy_tr3000-v1-256mb"
 
           for attempt in 1 2 3; do
             make defconfig </dev/null
@@ -248,7 +282,7 @@ jobs:
             for s in $req; do
               if ! grep -q "^${s}=y" .config; then
                 # 追加到文件末尾：kconfig 对同名符号取最后一次赋值
-                echo "CONFIG_PACKAGE_${s#CONFIG_PACKAGE_}=y" >> .config
+                echo "${s}=y" >> .config
                 echo "  第 $attempt 轮补回: $s"
                 miss=$((miss + 1))
               fi
@@ -453,17 +487,35 @@ jobs:
       - name: 校验产物（含包仓库）
         run: |
           MDIR=bin/targets/mediatek/filogic
-          M=$(find "$MDIR" -maxdepth 1 -name '*.manifest' | head -1)
-          echo "manifest: $M"
-          grep -q '^adblock-fast ' "$M" || {
-            echo '固件里没有 adblock-fast'; exit 1; }
-          for bad in luci-app-openclash adguardhome \
-                     luci-app-homeproxy mihomo; do
-            if grep -qiE "^${bad} " "$M"; then
-              echo "固件里混进了 $bad"; exit 1
-            fi
+          # 多设备变体：每个变体各自一个 .manifest，逐个校验（不能只取 head -1）
+          MS=$(find "$MDIR" -maxdepth 1 -name '*.manifest' | sort)
+          [ -n "$MS" ] || { echo '没有 manifest'; exit 1; }
+          COUNT=$(printf '%s\n' "$MS" | wc -l)
+          echo "发现 $COUNT 个 manifest:"
+          echo "$MS"
+          for M in $MS; do
+            grep -q '^adblock-fast ' "$M" || {
+              echo "固件里没有 adblock-fast: $(basename "$M")"; exit 1; }
+            for bad in luci-app-openclash adguardhome \
+                       luci-app-homeproxy mihomo; do
+              if grep -qiE "^${bad} " "$M"; then
+                echo "固件里混进了 $bad: $(basename "$M")"; exit 1
+              fi
+            done
           done
-          echo 'OK  固件包清单符合预期'
+          echo 'OK  所有变体的包清单符合预期'
+
+          # 三个硬件变体的 sysupgrade 镜像必须都在
+          for v in cudy_tr3000-v1 cudy_tr3000-v1-ubootmod \
+                   cudy_tr3000-v1-256mb; do
+            f=$(find "$MDIR" -maxdepth 1 \
+                -name "*${v}-squashfs-sysupgrade.bin" | head -1)
+            if [ -z "$f" ]; then
+              echo "缺变体镜像: $v"; ls "$MDIR"/*.bin 2>/dev/null; exit 1
+            fi
+            echo "  $(basename "$f")  $(du -h "$f" | cut -f1)"
+          done
+          echo 'OK  三个变体镜像齐全'
 
           # ALL_KMODS 是否真的生效：看 packages/ 里的 kmod 数量
           PKG="$MDIR/packages"

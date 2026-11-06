@@ -1,0 +1,69 @@
+#!/bin/sh
+# theme-switch — 一键切换 LuCI 主题
+#
+# 设计目标：任何「已安装 + 自带样式」的主题都能切换，不维护白名单。
+# 新装主题只要具备 /www/luci-static/<slug>/ 且有 css 文件，
+# 并且它自带的 /etc/uci-defaults/30_luci-theme-<name> 已把
+# luci.themes.<Name>=/luci-static/<slug> 注册进配置，就能直接用。
+#
+# 为什么要这个脚本：luci-app-commands 执行命令时用 parse_args() 把字符串
+# 按空格拆成 argv 直接 execve，**不经过 shell**。所以配置里写
+#   uci set ... && uci commit ... && /etc/init.d/uhttpd reload
+# 会把 "&&" 当成 uci 的参数传进去，报 "Usage: uci ..." 并失败（Code 255）。
+# 把整条链路收敛进一个脚本，调用方只传 slug，就没有分隔符解析问题。
+#
+# 检测样式文件用纯 shell 通配符，不用 find：BusyBox 的 find 不支持
+# `-quit` 这类 GNU 扩展，用它写检测会静默返回空、误判“主题未安装”。
+#
+# 用法: theme-switch <slug>
+#   slug = /www/luci-static/ 下的目录名，例如 argon / vantage / aurora
+
+THEME="$1"
+
+# 只允许小写字母、数字、连字符，防止路径穿越与命令注入
+case "$THEME" in
+	'')
+		echo "用法: theme-switch <slug>"
+		exit 1
+		;;
+	*[!a-z0-9-]*)
+		echo "非法主题名: $THEME（只允许小写字母、数字、连字符）"
+		exit 1
+		;;
+esac
+
+BASE="/luci-static/$THEME"
+
+# 主题自带的样式可能在根目录（vantage.css / cascade.css）或在 css/ 子目录（argon）
+dir_has_css() {
+	for f in "$1"*.css "$1"*/*.css; do
+		[ -f "$f" ] && return 0
+	done
+	return 1
+}
+
+if [ ! -d "/www$BASE" ] || ! dir_has_css "/www$BASE/"; then
+	echo "主题未安装或缺少样式: $BASE"
+	echo "可用主题:"
+	for d in /www/luci-static/*/; do
+		# resources 是 LuCI 核心静态资源，不是可选主题
+		case "$(basename "$d")" in resources) continue ;; esac
+		dir_has_css "$d" || continue
+		echo "  $(basename "$d")"
+	done
+	exit 1
+fi
+
+uci -q set luci.main.mediaurlbase="$BASE" || {
+	echo "写入 uci 失败"
+	exit 1
+}
+uci -q commit luci || {
+	echo "提交失败"
+	exit 1
+}
+
+/etc/init.d/uhttpd reload >/dev/null 2>&1
+
+echo "已切换到 $THEME"
+echo "刷新浏览器页面即可生效（Ctrl+F5 强制刷新）"
