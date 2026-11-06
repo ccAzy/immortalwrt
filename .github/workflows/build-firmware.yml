@@ -43,15 +43,27 @@ jobs:
         with:
           fetch-depth: 1
 
+      # 预检：run 块是字符串，YAML 合法不等于 shell 合法。
+      # 实测踩过：改 for 循环时漏了循环体，CI 跑 9 分钟才报 syntax error。
+      - name: 工作流自检（run 块 shell 语法）
+        run: |
+          python3 -c 'import yaml' 2>/dev/null \
+            || sudo apt-get install -y -qq python3-yaml
+          python3 scripts/check-workflow-shell.py \
+            .github/workflows/build-firmware.yml
+
       # 手动触发时只编选中的变体；push 触发默认 all。
       # 三个变体共用同一轮内核与软件包编译，差别只在 rootfs 组装与镜像，
       # 所以「只编一个」省的是镜像与磁盘时间，不是整轮重编。
       - name: 确定要编译的变体
         id: variants
+        # 用 env 传值而不是直接塞进 run:，避免 shell 注入面
+        env:
+          VARIANT: ${{ github.event.inputs.variant }}
         run: |
           # push 触发时 inputs 为空（不是 "all"），必须当成 all，
           # 否则会落到 *) 分支直接 exit 1（2026-11-06 实测踩过）
-          V="${{ github.event.inputs.variant }}"
+          V="$VARIANT"
           V="${V:-all}"
           case "$V" in
             all)
@@ -175,6 +187,7 @@ jobs:
           #   v1-256mb  230 MiB 256MB 硬件版（R103）
           T=CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE
           for d in ${{ steps.variants.outputs.devs }}; do
+            echo "${T}_${d}=y" >> .config
           done
 
           fail=0
@@ -614,6 +627,7 @@ jobs:
 
           # 三个硬件变体的 sysupgrade 镜像必须都在
           for v in ${{ steps.variants.outputs.devs }}; do
+            f=$(find "$MDIR" -maxdepth 1 \
                 -name "*${v}-squashfs-sysupgrade.bin" | head -1)
             if [ -z "$f" ]; then
               echo "缺变体镜像: $v"; ls "$MDIR"/*.bin 2>/dev/null; exit 1
