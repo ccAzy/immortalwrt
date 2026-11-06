@@ -1,0 +1,23 @@
+#!/bin/sh
+# DNS 缓存调优 —— 对齐参考固件（大佬编译版）的 dnsmasq 配置
+#
+# OpenWrt 默认 cachesize=1000、nonegcache=0，在高并发或上游不稳时
+# 会频繁回源查询。参考固件做了如下调整，实测有效，这里固化为默认值：
+#
+#   cachesize      1000 → 8000   缓存条目 8 倍
+#   min_cache_ttl  无   → 3600   最小缓存 1 小时，抹平上游 TTL 抖动
+#   nonegcache     0    → 1      不缓存否定应答，避免"域名不存在"被粘住
+#
+# 未采纳的两项：
+#   use_stale_cache  本版 dnsmasq.init 无对应 uci 选项（dnsmasq 本身支持，
+#                    但 OpenWrt 未做映射，硬写进 uci 不会生效）
+#   dns_redirect     本版 init 不认；且它会劫持所有 DNS 强制走路由器，
+#                    装了 DoT/adblock 之外的场景可能干扰自定义 DNS，
+#                    不设为好
+
+uci -q set dhcp.@dnsmasq[0].cachesize='8000'
+uci -q set dhcp.@dnsmasq[0].min_cache_ttl='3600'
+uci -q set dhcp.@dnsmasq[0].nonegcache='1'
+uci -q commit dhcp
+
+exit 0
