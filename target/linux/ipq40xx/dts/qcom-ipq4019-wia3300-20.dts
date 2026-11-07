@@ -253,14 +253,6 @@
 	pinctrl-names = "default";
 };
 
-&crypto {
-	status = "okay";
-};
-
-&cryptobam {
-	status = "okay";
-};
-
 &ethphy3 {
 	leds {
 		#address-cells = <1>;
@@ -419,7 +411,7 @@
 
 	nvmem-cell-names = "mac-address", "pre-calibration";
 	nvmem-cells = <&macaddr_boardinfo_108a 3>, <&precal_art_1000>;
-	qcom,ath10k-calibration-variant = "SKSpruce_WIA3300-20";
+	qcom,calibration-variant = "SKSpruce_WIA3300-20";
 };
 
 &wifi1 {
@@ -427,5 +419,5 @@
 
 	nvmem-cell-names = "mac-address", "pre-calibration";
 	nvmem-cells = <&macaddr_boardinfo_108a 4>, <&precal_art_5000>;
-	qcom,ath10k-calibration-variant = "SKSpruce_WIA3300-20";
+	qcom,calibration-variant = "SKSpruce_WIA3300-20";
 };

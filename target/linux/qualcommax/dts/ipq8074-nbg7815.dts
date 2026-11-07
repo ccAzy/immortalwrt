@@ -18,11 +18,16 @@
 	compatible = "zyxel,nbg7815", "qcom,ipq8074";
 
 	aliases {
+		/*
+		 * No led-boot or led-failsafe: both states are set from
+		 * preinit, before the i2c driver for the controller is
+		 * loaded, so the LED does not exist yet at that point.
+		 */
+		led-running = &led_status;
+		led-upgrade = &led_status;
 		serial0 = &blsp1_uart5;
 		serial1 = &blsp1_uart3;
-		/* Alias as required by u-boot to patch MAC addresses */
-		ethernet0 = &dp1;
-		label-mac-device = &dp1;
+		label-mac-device = &swport1;
 	};
 
 	chosen {
@@ -37,6 +42,25 @@
 			linux,code = <KEY_RESTART>;
 			gpios = <&tlmm 54 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	fan: fan {
+		compatible = "gpio-fan";
+		gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
+		/* nominal rpm of the stock fan */
+		gpio-fan,speed-map = <0 0>,
+				     <3000 1>;
+		#cooling-cells = <2>;
+	};
+
+	usb_vbus: regulator-usb-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
 	};
 };
 
@@ -56,9 +80,38 @@
 			bias-pull-up;
 		};
 	};
+
+	i2c_1_pins: i2c1-pins {
+		mux {
+			pins = "gpio50", "gpio51";
+			function = "blsp3_i2c";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
+	/*
+	 * The stock firmware keeps these outputs high:
+	 * gpio22: second fan enable
+	 * gpio60: LED board enable
+	 */
+	fan2-en {
+		gpio-hog;
+		gpios = <22 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "fan2-enable";
+	};
+
+	led-en {
+		gpio-hog;
+		gpios = <60 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "led-enable";
+	};
 };
 
 &blsp1_uart3 {
+	/* CSR8811 bluetooth, 4-wire HSUART on the hsuart_pins */
 	status = "okay";
 };
 
@@ -67,14 +120,6 @@
 };
 
 &prng {
-	status = "okay";
-};
-
-&cryptobam {
-	status = "okay";
-};
-
-&crypto {
 	status = "okay";
 };
 
@@ -223,7 +268,7 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					aqr_fw: aqr-fw@0 {
+					aqr_fw: firmware@28 {
 						/* Skip the QCOM MBN Header of 40 bytes */
 						reg = <0x28 0x5f402>;
 					};
@@ -300,46 +345,95 @@
 	};
 };
 
+&uniphy0 {
+	status = "okay";
+};
+
+&uniphy1 {
+	status = "okay";
+};
+
+&uniphy2 {
+	status = "okay";
+};
+
 &switch {
 	status = "okay";
 
-	switch_lan_bmp = <(ESS_PORT1 | ESS_PORT2 | ESS_PORT3 | ESS_PORT4 | ESS_PORT6)>;
-	switch_wan_bmp = <ESS_PORT5>;
-	switch_mac_mode = <MAC_MODE_PSGMII>;
-	switch_mac_mode1 = <MAC_MODE_SGMII_CHANNEL0>;
-	switch_mac_mode2 = <MAC_MODE_USXGMII>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	qcom,port_phyinfo {
-		port@1 {
-			port_id = <1>;
-			phy_address = <0>;
+		port@0 {
+			reg = <0>;
+			ethernet = <&edma>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
-		port@2 {
-			port_id = <2>;
-			phy_address = <1>;
+		swport1: port@1 {
+			reg = <1>;
+			label = "lan1";
+			phy-handle = <&qca8075_0>;
+			phy-mode = "psgmii";
+			pcs-handle = <&uniphy0 0>;
+			nvmem-cells = <&macaddr_lan 0>;
+			nvmem-cell-names = "mac-address";
 		};
 
-		port@3 {
-			port_id = <3>;
-			phy_address = <2>;
+		swport2: port@2 {
+			reg = <2>;
+			label = "lan2";
+			phy-handle = <&qca8075_1>;
+			phy-mode = "psgmii";
+			pcs-handle = <&uniphy0 1>;
+			nvmem-cells = <&macaddr_lan 0>;
+			nvmem-cell-names = "mac-address";
 		};
 
-		port@4 {
-			port_id = <4>;
-			phy_address = <3>;
+		swport3: port@3 {
+			reg = <3>;
+			label = "lan3";
+			phy-handle = <&qca8075_2>;
+			phy-mode = "psgmii";
+			pcs-handle = <&uniphy0 2>;
+			nvmem-cells = <&macaddr_lan 0>;
+			nvmem-cell-names = "mac-address";
 		};
 
-		port@5 {
-			port_id = <5>;
-			phy_address = <28>;
-			port_mac_sel = "QGMAC_PORT";
+		swport4: port@4 {
+			reg = <4>;
+			label = "lan4";
+			phy-handle = <&qca8075_3>;
+			phy-mode = "psgmii";
+			pcs-handle = <&uniphy0 3>;
+			nvmem-cells = <&macaddr_lan 0>;
+			nvmem-cell-names = "mac-address";
 		};
 
-		port@6 {
-			port_id = <6>;
-			ethernet-phy-ieee802.3-c45;
-			phy_address = <8>;
+		swport5: port@5 {
+			reg = <5>;
+			label = "wan";
+			phy-handle = <&qca8081>;
+			phy-mode = "2500base-x";
+			pcs-handle = <&uniphy1 0>;
+			nvmem-cells = <&macaddr_lan 1>;
+			nvmem-cell-names = "mac-address";
+		};
+
+		swport6: port@6 {
+			reg = <6>;
+			label = "10g";
+			phy-handle = <&aqr113c>;
+			phy-mode = "usxgmii";
+			managed = "in-band-status";
+			pcs-handle = <&uniphy2 0>;
+			nvmem-cells = <&macaddr_lan 0>;
+			nvmem-cell-names = "mac-address";
 		};
 	};
 };
@@ -348,64 +442,355 @@
 	status = "okay";
 };
 
-&dp1 {
-	status = "okay";
-	phy-handle = <&qca8075_0>;
-	label = "lan1";
-	nvmem-cells = <&macaddr_lan 0>;
-	nvmem-cell-names = "mac-address";
-};
-
-&dp2 {
-	status = "okay";
-	phy-handle = <&qca8075_1>;
-	label = "lan2";
-	nvmem-cells = <&macaddr_lan 0>;
-	nvmem-cell-names = "mac-address";
-};
-
-&dp3 {
-	status = "okay";
-	phy-handle = <&qca8075_2>;
-	label = "lan3";
-	nvmem-cells = <&macaddr_lan 0>;
-	nvmem-cell-names = "mac-address";
-};
-
-&dp4 {
-	status = "okay";
-	phy-handle = <&qca8075_3>;
-	label = "lan4";
-	nvmem-cells = <&macaddr_lan 0>;
-	nvmem-cell-names = "mac-address";
-};
-
-&dp5 {
-	status = "okay";
-	phy-mode = "sgmii";
-	phy-handle = <&qca8081>;
-	label = "wan";
-	nvmem-cells = <&macaddr_lan 1>;
-	nvmem-cell-names = "mac-address";
-};
-
-&dp6_syn {
-	status = "okay";
-	phy-mode = "usxgmii";
-	phy-handle = <&aqr113c>;
-	label = "10g";
-	nvmem-cells = <&macaddr_lan 0>;
-	nvmem-cell-names = "mac-address";
-};
-
 &blsp1_i2c2 {
 	pinctrl-0 = <&i2c_0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
+	/* front panel RGB LEDs, 6 pcs. */
+	lp5569@32 {
+		compatible = "ti,lp5569";
+		reg = <0x32>;
+		clock-mode = /bits/8 <1>; /* internal */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		multi-led@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@0 {
+				reg = <0>;
+				chan-name = "nbg7815:led1";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@1 {
+				reg = <1>;
+				chan-name = "nbg7815:led1";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@2 {
+				reg = <2>;
+				chan-name = "nbg7815:led1";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+
+		multi-led@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@3 {
+				reg = <3>;
+				chan-name = "nbg7815:led2";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@4 {
+				reg = <4>;
+				chan-name = "nbg7815:led2";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@5 {
+				reg = <5>;
+				chan-name = "nbg7815:led2";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+
+		multi-led@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@6 {
+				reg = <6>;
+				chan-name = "nbg7815:led3";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@7 {
+				reg = <7>;
+				chan-name = "nbg7815:led3";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@8 {
+				reg = <8>;
+				chan-name = "nbg7815:led3";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+	};
+
+	lp5569@35 {
+		compatible = "ti,lp5569";
+		reg = <0x35>;
+		clock-mode = /bits/8 <2>; /* external */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		multi-led@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@6 {
+				reg = <6>;
+				chan-name = "nbg7815:led4";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@7 {
+				reg = <7>;
+				chan-name = "nbg7815:led4";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@8 {
+				reg = <8>;
+				chan-name = "nbg7815:led4";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+
+		multi-led@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@3 {
+				reg = <3>;
+				chan-name = "nbg7815:led5";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@4 {
+				reg = <4>;
+				chan-name = "nbg7815:led5";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@5 {
+				reg = <5>;
+				chan-name = "nbg7815:led5";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+
+		multi-led@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@0 {
+				reg = <0>;
+				chan-name = "nbg7815:led6";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@1 {
+				reg = <1>;
+				chan-name = "nbg7815:led6";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@2 {
+				reg = <2>;
+				chan-name = "nbg7815:led6";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+	};
+
 	tmp103@70 {
 		compatible = "ti,tmp103";
 		reg = <0x70>;
+	};
+	/* third front panel RGB LED group (LED7-LED9); the chip answers to the
+	 * lp5569 register layout - a write to the pwm registers at 0x16 lights
+	 * the LEDs, while the lp50xx driver only got -EIO
+	 */
+	lp5569@40 {
+		compatible = "ti,lp5569";
+		reg = <0x40>;
+		clock-mode = /bits/8 <1>; /* internal */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led_status: multi-led@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			color = <LED_COLOR_ID_RGB>;
+			/*
+			 * Read by get_dt_led() for the aliases above.
+			 * The driver only looks at "label" on the chip
+			 * node, so this does not rename the classdev.
+			 */
+			label = "nbg7815:led7";
+
+			led@0 {
+				reg = <0>;
+				chan-name = "nbg7815:led7";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@1 {
+				reg = <1>;
+				chan-name = "nbg7815:led7";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@2 {
+				reg = <2>;
+				chan-name = "nbg7815:led7";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+
+		multi-led@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@3 {
+				reg = <3>;
+				chan-name = "nbg7815:led8";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@4 {
+				reg = <4>;
+				chan-name = "nbg7815:led8";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@5 {
+				reg = <5>;
+				chan-name = "nbg7815:led8";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+
+		multi-led@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+			color = <LED_COLOR_ID_RGB>;
+
+			led@6 {
+				reg = <6>;
+				chan-name = "nbg7815:led9";
+				color = <LED_COLOR_ID_RED>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@7 {
+				reg = <7>;
+				chan-name = "nbg7815:led9";
+				color = <LED_COLOR_ID_GREEN>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+
+			led@8 {
+				reg = <8>;
+				chan-name = "nbg7815:led9";
+				color = <LED_COLOR_ID_BLUE>;
+				led-cur = /bits/8 <0xdf>;
+				max-cur = /bits/8 <0xff>;
+			};
+		};
+	};
+};
+
+
+/* use the second I2C bus for the second temperature sensor */
+/delete-node/ &blsp1_spi4;
+
+&soc {
+	i2c@78b8000 {
+		compatible = "qcom,i2c-qup-v2.2.1";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x078b8000 0x600>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&gcc GCC_BLSP1_QUP4_I2C_APPS_CLK>,
+			 <&gcc GCC_BLSP1_AHB_CLK>;
+		clock-names = "core", "iface";
+		clock-frequency = <400000>;
+		dmas = <&blsp_dma 18>, <&blsp_dma 19>;
+		dma-names = "tx", "rx";
+		pinctrl-0 = <&i2c_1_pins>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		tmp103@70 {
+			compatible = "ti,tmp103";
+			reg = <0x70>;
+		};
 	};
 };
 
@@ -431,19 +816,48 @@
 };
 
 &qusb_phy_1 {
+	vdd-supply = <&usb_vbus>;
 	status = "okay";
 };
 
 &usb_0 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 
 &usb_1 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 
 &wifi {
 	status = "okay";
 
-	qcom,ath11k-calibration-variant = "Zyxel-NBG7815";
+	qcom,calibration-variant = "Zyxel-NBG7815";
+};
+
+&cluster_thermal {
+	trips {
+		cluster_fan: cluster-fan {
+			/*
+			 * The stock firmware only switches the fan at 108/85
+			 * degC, which the SoC hardly ever reaches, so the case
+			 * gets uncomfortably hot under load first. Start it at
+			 * 85 degC instead, as discussed for this device in
+			 * https://github.com/openwrt/openwrt/pull/14210
+			 */
+			temperature = <85000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map2 {
+			trip = <&cluster_fan>;
+			cooling-device = <&fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
 };

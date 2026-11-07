@@ -114,10 +114,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &tlmm {
 	serial_pins: serial_pinmux {
 		mux {
@@ -214,14 +210,10 @@
 	pinctrl-names = "default";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &wifi1 {
 	status = "okay";
 
-	qcom,ath10k-calibration-variant = "MikroTik-SXTsq-5-ac";
+	qcom,calibration-variant = "MikroTik-SXTsq-5-ac";
 };
 
 &mdio {

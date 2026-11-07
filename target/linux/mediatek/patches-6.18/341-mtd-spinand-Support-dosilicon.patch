@@ -21,12 +21,12 @@ Signed-off-by: Jon Lin <jon.lin@rock-chips.com>
  # SPDX-License-Identifier: GPL-2.0
  spinand-objs := core.o otp.o
 +spinand-objs += dosilicon.o
- spinand-objs += alliancememory.o ato.o esmt.o etron.o fmsh.o foresee.o gigadevice.o
+ spinand-objs += alliancememory.o ato.o esmt.o etron.o fmsh.o foresee.o gigadevice.o heyangtek.o
  spinand-objs += macronix.o micron.o paragon.o skyhigh.o toshiba.o winbond.o xtx.o
  obj-$(CONFIG_MTD_SPI_NAND) += spinand.o
 --- a/drivers/mtd/nand/spi/core.c
 +++ b/drivers/mtd/nand/spi/core.c
-@@ -1227,6 +1227,7 @@ static const struct nand_ops spinand_ops
+@@ -1246,6 +1246,7 @@ static const struct nand_ops spinand_ops
  static const struct spinand_manufacturer *spinand_manufacturers[] = {
  	&alliancememory_spinand_manufacturer,
  	&ato_spinand_manufacturer,

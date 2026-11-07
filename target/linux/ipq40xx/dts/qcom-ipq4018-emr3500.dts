@@ -81,10 +81,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &tlmm {
 	serial_pins: serial_pinmux {
 		mux {
@@ -190,10 +186,6 @@
 	status = "okay";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &usb2_hs_phy {
 	status = "okay";
 };
@@ -204,10 +196,10 @@
 
 &wifi0 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "EnGenius-EMR3500";
+	qcom,calibration-variant = "EnGenius-EMR3500";
 };
 
 &wifi1 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "EnGenius-EMR3500";
+	qcom,calibration-variant = "EnGenius-EMR3500";
 };

@@ -78,10 +78,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &blsp_dma {
 	status = "okay";
 };
@@ -169,10 +165,6 @@
 	status = "okay";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &nand {
 	pinctrl-0 = <&nand_pins>;
 	pinctrl-names = "default";
@@ -210,7 +202,7 @@
 		nvmem-cell-names = "pre-calibration";
 		nvmem-cells = <&precal_art_9000>;
 		ieee80211-freq-limit = <5470000 5875000>;
-		qcom,ath10k-calibration-variant = "EnGenius-EAP2200";
+		qcom,calibration-variant = "EnGenius-EAP2200";
 	};
 };
 
@@ -270,7 +262,7 @@
 	status = "okay";
 	nvmem-cell-names = "pre-calibration";
 	nvmem-cells = <&precal_art_1000>;
-	qcom,ath10k-calibration-variant = "EnGenius-EAP2200";
+	qcom,calibration-variant = "EnGenius-EAP2200";
 };
 
 &wifi1 {
@@ -278,5 +270,5 @@
 	ieee80211-freq-limit = <5170000 5350000>;
 	nvmem-cell-names = "pre-calibration";
 	nvmem-cells = <&precal_art_5000>;
-	qcom,ath10k-calibration-variant = "EnGenius-EAP2200";
+	qcom,calibration-variant = "EnGenius-EAP2200";
 };

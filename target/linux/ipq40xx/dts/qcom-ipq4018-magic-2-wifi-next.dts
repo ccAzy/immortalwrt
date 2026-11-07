@@ -80,10 +80,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &tlmm {
 	spi_0_pins: spi_0_pinmux {
 		mux {
@@ -133,10 +129,6 @@
 	};
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &blsp_dma {
 	status = "okay";
 };
@@ -157,12 +149,12 @@
 
 &wifi0 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "devolo,magic-2-wifi-next";
+	qcom,calibration-variant = "devolo,magic-2-wifi-next";
 };
 
 &wifi1 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "devolo,magic-2-wifi-next";
+	qcom,calibration-variant = "devolo,magic-2-wifi-next";
 };
 
 &blsp1_spi1 {

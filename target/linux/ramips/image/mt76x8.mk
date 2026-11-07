@@ -19,7 +19,9 @@ define Build/creality_wb-01-factory
 		echo 'mtd_write -o 0 -l $(kernel_size) write $$file Kernel'; \
 		echo 'mtd_write -r -o $(kernel_size) -l $$rootfs_size write $$file RootFS'; \
 	) > $(dir $@)install.sh
-	tar cjf $@ -C $(dir $@) factory.bin install.sh
+	$(TAR) -cjf $@ -C $(dir $@) --numeric-owner --owner=0 --group=0 --mode=go-w \
+		$(if $(SOURCE_DATE_EPOCH),--mtime="@$(SOURCE_DATE_EPOCH)") \
+		factory.bin install.sh
 endef
 
 define Build/elecom-header
@@ -220,6 +222,18 @@ define Device/cudy_lt400e-v1
   SUPPORTED_DEVICES += cudy,lt400e
 endef
 TARGET_DEVICES += cudy_lt400e-v1
+
+define Device/cudy_lt500-outdoor-v1
+  IMAGE_SIZE := 15872k
+  DEVICE_VENDOR := Cudy
+  DEVICE_MODEL := LT500 Outdoor
+  DEVICE_VARIANT := v1
+  DEVICE_PACKAGES := kmod-mt7615e kmod-mt7663-firmware-ap kmod-usb2 \
+	kmod-usb-ohci kmod-usb-net-cdc-ether kmod-usb-serial-option
+  UIMAGE_NAME := R35
+  SUPPORTED_DEVICES += R35
+endef
+TARGET_DEVICES += cudy_lt500-outdoor-v1
 
 define Device/cudy_m1200-v1
   IMAGE_SIZE := 15872k
@@ -733,7 +747,8 @@ define Device/qding_qc202
   IMAGE_SIZE := 7872k
   DEVICE_VENDOR := Qding
   DEVICE_MODEL := QC202
-  DEVICE_PACKAGES := kmod-i2c-mt7628 kmod-gpio-beeper kmod-input-matrix-keypad kmod-input-evdev uboot-envtools
+  DEVICE_PACKAGES := kmod-i2c-mt7628 kmod-gpio-beeper kmod-input-matrix-keypad kmod-input-evdev \
+	input-support uboot-envtools
   IMAGES += factory.bin
   IMAGE/factory.bin := $$(sysupgrade_bin) | qding-header qc202
 endef

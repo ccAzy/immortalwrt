@@ -1,17 +1,15 @@
 include $(TOPDIR)/rules.mk
 
 PKG_DISTNAME:=u-boot
-PKG_VERSION:=2026.04
-PKG_RELEASE:=1
+PKG_VERSION:=2026.10
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_DISTNAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:= \
-	https://ftp.denx.de/pub/u-boot \
-	https://mirror.cyberbits.eu/u-boot
-PKG_URL:=https://docs.u-boot.org/en/latest/
-PKG_HASH:=ac7c04b8b7004923b00a4e5d6699c5df4d21233bac9fda690d8cfbc209fff2fd
-PKG_SOURCE_SUBDIR:=$(PKG_DISTNAME)-$(PKG_VERSION)
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_DISTNAME)-$(PKG_VERSION)
+	https://git.u-boot-project.org/u-boot/u-boot/-/releases/v$(PKG_VERSION)/downloads
+PKG_URL:=https://docs.u-boot-project.org/en/latest/
+PKG_HASH:=3f856da3cbbc93af51ff95fde18588a348b4a26723b01d9841e999d988481015
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_DISTNAME)-v$(PKG_VERSION)
 
 PKG_BUILD_DEPENDS:=fstools
 
@@ -81,7 +79,6 @@ MAKE_FLAGS += \
 	ARCH="sandbox" \
 	TARGET_CFLAGS="$(TARGET_CFLAGS)" \
 	TARGET_LDFLAGS="$(TARGET_LDFLAGS)" \
-	PKG_CONFIG_SYSROOT_DIR="$(STAGING_DIR_HOST)" \
 	NO_PYTHON=1 \
 	V=$(if $(findstring c,$(OPENWRT_VERBOSE)),1,)
 

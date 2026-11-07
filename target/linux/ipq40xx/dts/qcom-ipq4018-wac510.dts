@@ -147,10 +147,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &tlmm {
 	mdio_pins: mdio_pinmux {
 		mux_1 {
@@ -338,10 +334,6 @@
 	pinctrl-names = "default";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &gmac {
 	status = "okay";
 };
@@ -373,12 +365,12 @@
 	status = "okay";
 	nvmem-cell-names = "pre-calibration", "mac-address";
 	nvmem-cells = <&precal_art_1000>, <&macaddr_manudata_6 0>;
-	qcom,ath10k-calibration-variant = "Netgear-WAC510";
+	qcom,calibration-variant = "Netgear-WAC510";
 };
 
 &wifi1 {
 	status = "okay";
 	nvmem-cell-names = "pre-calibration", "mac-address";
 	nvmem-cells = <&precal_art_5000>, <&macaddr_manudata_6 16>;
-	qcom,ath10k-calibration-variant = "Netgear-WAC510";
+	qcom,calibration-variant = "Netgear-WAC510";
 };

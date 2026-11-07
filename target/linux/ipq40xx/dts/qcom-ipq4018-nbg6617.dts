@@ -123,10 +123,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &tlmm {
 	serial_pins: serial_pinmux {
 		mux {
@@ -264,10 +260,6 @@
 	status = "okay";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &blsp_dma {
 	status = "okay";
 };
@@ -314,12 +306,12 @@
 
 &wifi0 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "ZyXEL-NBG6617";
+	qcom,calibration-variant = "ZyXEL-NBG6617";
 };
 
 &wifi1 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "ZyXEL-NBG6617";
+	qcom,calibration-variant = "ZyXEL-NBG6617";
 };
 
 &usb3_ss_phy {

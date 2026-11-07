@@ -103,10 +103,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &tlmm {
 	serial_pins: serial_pinmux {
 		mux {
@@ -211,10 +207,6 @@
 	pinctrl-names = "default";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &usb3_hs_phy {
 	status = "okay";
 };
@@ -312,11 +304,11 @@
 &wifi0 {
 	status = "okay";
 
-	qcom,ath10k-calibration-variant = "MikroTik-hAP-ac2";
+	qcom,calibration-variant = "MikroTik-hAP-ac2";
 };
 
 &wifi1 {
 	status = "okay";
 
-	qcom,ath10k-calibration-variant = "MikroTik-hAP-ac2";
+	qcom,calibration-variant = "MikroTik-hAP-ac2";
 };

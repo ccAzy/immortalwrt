@@ -111,10 +111,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &tlmm {
 	serial_pins: serial_pinmux {
 		mux {
@@ -236,20 +232,16 @@
 	status = "okay";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
 &mdio {
 	status = "okay";
 };
 
 &wifi0 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "ZyXEL-WRE6606";
+	qcom,calibration-variant = "ZyXEL-WRE6606";
 };
 
 &wifi1 {
 	status = "okay";
-	qcom,ath10k-calibration-variant = "ZyXEL-WRE6606";
+	qcom,calibration-variant = "ZyXEL-WRE6606";
 };

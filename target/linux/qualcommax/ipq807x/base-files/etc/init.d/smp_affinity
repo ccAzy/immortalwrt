@@ -99,11 +99,6 @@ enable_affinity_ipq807x() {
   set_affinity 'ppdu-end-interrupts-mac2'      2
   set_affinity 'ppdu-end-interrupts-mac3'      3
 
-  # assign 4 lan/wan to core 4
-  set_affinity 'edma_txcmpl'                   3
-  set_affinity 'edma_rxfill'                   3
-  set_affinity 'edma_rxdesc'                   3
-  set_affinity 'edma_misc'                     3
 }
 
 boot() {
@@ -118,5 +113,10 @@ boot() {
   [ "$enable"     -eq 1 ] && enable=true     || enable=false
   [ "$enable_log" -eq 1 ] && enable_log=true || enable_log=false
 
-  $enable && enable_affinity_ipq807x
+  $enable && {
+    enable_affinity_ipq807x
+
+    # receive steering depends on where the ring interrupts are
+    [ -x /etc/init.d/packet_steering ] && /etc/init.d/packet_steering reload
+  }
 }

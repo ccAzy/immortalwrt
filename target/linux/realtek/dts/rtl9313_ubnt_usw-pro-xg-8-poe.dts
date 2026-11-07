@@ -196,6 +196,8 @@
 
 	i2c8: i2c@8 {
 		reg = <8>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		adt7475@2e {
 			compatible = "adi,adt7475";
@@ -209,6 +211,8 @@
 
 	i2c5: i2c@5 {
 		reg = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		gpio1: gpio@22 {
 			compatible = "nxp,pca9555";
@@ -225,7 +229,32 @@
 		};
 	};
 
-	i2c6: i2c@6 { reg = <6>; }; /* PoE MCU at 0x20 */
+	i2c_poe: i2c@6 {
+		reg = <6>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pse: ethernet-pse@20 {
+			compatible = "ubnt,usw-pro-xg-8-poe-pse", "realtek,pse-mcu-gen2-smbus";
+			reg = <0x20>;
+
+			reset-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+
+			pse-pis {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				PSE_PI(0)
+				PSE_PI(1)
+				PSE_PI(2)
+				PSE_PI(3)
+				PSE_PI(4)
+				PSE_PI(5)
+				PSE_PI(6)
+				PSE_PI(7)
+			};
+		};
+	};
 };
 
 &mdio_ctrl {
@@ -289,3 +318,11 @@
 	};
 };
 
+&phy0 { pses = <&pse_pi0>; };
+&phy8 { pses = <&pse_pi1>; };
+&phy16 { pses = <&pse_pi2>; };
+&phy24 { pses = <&pse_pi3>; };
+&phy32 { pses = <&pse_pi4>; };
+&phy40 { pses = <&pse_pi5>; };
+&phy48 { pses = <&pse_pi6>; };
+&phy50 { pses = <&pse_pi7>; };

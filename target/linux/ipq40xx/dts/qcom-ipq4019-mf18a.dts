@@ -133,10 +133,6 @@
 	status = "okay";
 };
 
-&crypto {
-	status = "okay";
-};
-
 &blsp_dma {
 	status = "okay";
 };
@@ -212,10 +208,6 @@
 &blsp1_uart1 {
 	pinctrl-0 = <&serial_pins>;
 	pinctrl-names = "default";
-	status = "okay";
-};
-
-&cryptobam {
 	status = "okay";
 };
 
@@ -461,7 +453,7 @@
 	status = "okay";
 	nvmem-cell-names = "pre-calibration", "mac-address";
 	nvmem-cells = <&precal_art_1000>, <&macaddr_config_0 2>;
-	qcom,ath10k-calibration-variant = "ZTE-MF18A";
+	qcom,calibration-variant = "ZTE-MF18A";
 };
 
 //* This node is used for 5Ghz on QCA9982 */
@@ -478,6 +470,6 @@
 		reg = <0x00010000 0 0 0 0>;
 		nvmem-cell-names = "pre-calibration", "mac-address";
 		nvmem-cells = <&precal_art_9000>, <&macaddr_config_0 3>;
-		qcom,ath10k-calibration-variant = "ZTE-MF18A";
+		qcom,calibration-variant = "ZTE-MF18A";
 	};
 };
