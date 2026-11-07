@@ -5,11 +5,12 @@
 ## 特性
 
 - **内核**：Linux 6.6 LTS，含 BBRv3 补丁（`target/linux/generic/hack-6.6/602-net-tcp_bbr-bbrv3.patch`）
-- **WiFi 驱动**：MTK 闭源 `mt_wifi`(mx1e) + WARP v2；双频 WE40 / HE80，均隐藏 SSID
+- **WiFi 驱动**：MTK 闭源 `mt_wifi`(mx1e) + WARP v2；双频 2.4G(WE40) / 5G(HE80)
+- **WiFi 默认值**：SSID 与密码**不预置**（首次启动自动生成 `ImmortalWrt` / `ImmortalWrt_5GHz`，**不隐藏**），刷完自行在「网络 → 无线」里设——隐藏 SSID 是本机手工配置，不是固件默认
 - **硬件加速**：有线 HNAT / 无线 WHNAT 全锥形 NAT（`luci-app-turboacc-mtk`，需 `kmod-tls=y` 才会进固件）
 - **TCP 调优**：BBRv3 + `fq_codel`，conntrack 上限 65536，socket 缓冲区 6MB（`configs/tr3000-sysctl.conf`）
 - **DNS**：`stubby` 提供 DNS-over-TLS（阿里 223.5.5.5 / 223.6.6.6 + 腾讯 `dot.pub`），`dnsmasq` 8k 缓存、不缓存否定应答
-- **广告过滤**：`adblock-fast`（DNSMASQ 模式，A/AAAA 双族一并拦截）
+- **广告过滤**：`adblock-fast` 已装但**默认关闭**（`enabled='0'`，且 5.5 万条规则不进固件）；刷完需自己挂规则源再启用，或用 `工具/restore-my-config.sh` 生成屏蔽表
 - **文件共享**：ksmbd (SMB) + wsdd2 局域网发现 + dufs（Web 文件服务器）
 - **主题**：Argon / Aurora / Vantage 三套 + 一键切换（系统 → 主题切换）
 - **诊断工具**：`timeout`（busybox applet）、`kdig`、`tcping`、`tcpdump`、`iperf3`、`mtr`、`conntrack`
