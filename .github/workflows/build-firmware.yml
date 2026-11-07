@@ -361,59 +361,61 @@ jobs:
           # 必须跑完检查、缺了补回去再跑，最多三轮收敛。
           echo '--- feeds 装完，重新解析 .config（带自愈）---'
 
-          req="CONFIG_PACKAGE_adblock-fast"
-          req="$req CONFIG_PACKAGE_luci-app-adblock-fast"
-          req="$req CONFIG_PACKAGE_luci-theme-argon"
-          req="$req CONFIG_PACKAGE_luci-theme-vantage"
-          req="$req CONFIG_PACKAGE_luci-app-vantage"
-          req="$req CONFIG_PACKAGE_kmod-tcp-bbr"
-          req="$req CONFIG_PACKAGE_libwebsockets-full"
-          # 本次新增的包也纳入自愈：tcpdump/tcping 早就在 defconfig 里却从未
-          # 进过固件，就是被 make defconfig 丢掉的，不纳入会重蹈覆辙。
-          req="$req CONFIG_PACKAGE_luci-theme-aurora"
-          # 注意：i18n 包（luci-i18n-*）不用写 req —— luci.mk 用
-          # LUCI_BUILD_PACKAGES 在编译时自动带出，metadata 里没有它们的
-          # config 块，写进 .config 会被当未知符号丢弃，导致自愈永不收敛。
-          req="$req CONFIG_PACKAGE_luci-app-aurora-config"
-          req="$req CONFIG_PACKAGE_luci-app-theme-switch"
-          req="$req CONFIG_PACKAGE_luci-app-turboacc-mtk"
-          req="$req CONFIG_PACKAGE_kmod-bonding"
-          req="$req CONFIG_PACKAGE_kmod-tls"
-          req="$req CONFIG_PACKAGE_kmod-netlink-diag"
-          req="$req CONFIG_PACKAGE_bash"
-          req="$req CONFIG_PACKAGE_ip-full"
-          req="$req CONFIG_PACKAGE_tcpdump"
-          req="$req CONFIG_PACKAGE_tcping"
-          req="$req CONFIG_PACKAGE_unzip"
-          req="$req CONFIG_PACKAGE_mkf2fs"
-          req="$req CONFIG_PACKAGE_f2fsck"
-          req="$req CONFIG_PACKAGE_libf2fs"
-          req="$req CONFIG_PACKAGE_kmod-usb-net-qmi-wwan"
-          req="$req CONFIG_PACKAGE_kmod-usb-wdm"
-          # 三个设备变体也纳入自愈（make defconfig 同样可能把它们关掉）
+          # 旧的手写 req 清单漏了 60 个来自 feeds 的包（stubby / knot-dig /
+          # ksmbd-server / dufs / ddns-scripts / htop / nano / iperf3 …）。
+          # 实测用它对出来的 CI 固件是 404 个包，本地 464 个。
+          # 改成以 defconfig 为准的自愈：凡 defconfig 标了 =y 的包/设备符号，
+          # .config 里被 make defconfig 丢掉就补回来。
           T=CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE
-          req="$req ${T}_cudy_tr3000-v1"
-          req="$req ${T}_cudy_tr3000-v1-ubootmod"
-          req="$req ${T}_cudy_tr3000-v1-256mb"
 
+          prev=""
           for attempt in 1 2 3; do
             make defconfig </dev/null
-            miss=0
-            for s in $req; do
+            out=$(sh scripts/heal-config.sh               defconfig/mt7981-ax3000.config .config)
+            syms=$(echo "$out" | sed -n 's/^HEALED_SYMS=//p')
+            miss=$(echo "$out" | sed -n 's/^HEALED=//p')
+            for d in ${{ steps.variants.outputs.devs }}; do
+              s="${T}_${d}"
               if ! grep -q "^${s}=y" .config; then
-                # 追加到文件末尾：kconfig 对同名符号取最后一次赋值
                 echo "${s}=y" >> .config
-                echo "  第 $attempt 轮补回: $s"
                 miss=$((miss + 1))
               fi
             done
-            echo "第 $attempt 轮解析完成，补回 $miss 个符号"
+            echo "第 $attempt 轮补回 $miss 个符号"
             [ "$miss" -eq 0 ] && break
-            if [ "$attempt" -eq 3 ]; then
-              echo "三轮仍无法收敛"
-              for s in $req; do grep -q "^${s}=y" .config || echo "  缺 $s"; done
-              exit 1
+            # 同一批符号第二轮又被丢 -> kconfig 不认，属于无害符号，收敛即可
+            if [ "$syms" = "$prev" ]; then
+              echo "已收敛（下列符号 kconfig 不保留，不影响产物）: $syms"
+              break
             fi
+            prev="$syms"
+          done
+
+          # 关键包必须在（这次的教训：漏了 60 个包没人发现）
+          req="CONFIG_PACKAGE_adblock-fast"
+          req="$req CONFIG_PACKAGE_luci-app-adblock-fast"
+          req="$req CONFIG_PACKAGE_stubby"
+          req="$req CONFIG_PACKAGE_getdns"
+          req="$req CONFIG_PACKAGE_knot-dig"
+          req="$req CONFIG_PACKAGE_ksmbd-server"
+          req="$req CONFIG_PACKAGE_luci-app-ksmbd"
+          req="$req CONFIG_PACKAGE_dufs"
+          req="$req CONFIG_PACKAGE_luci-app-dufs"
+          req="$req CONFIG_PACKAGE_ddns-scripts"
+          req="$req CONFIG_PACKAGE_luci-app-ddns"
+          req="$req CONFIG_PACKAGE_luci-app-wol"
+          req="$req CONFIG_PACKAGE_htop"
+          req="$req CONFIG_PACKAGE_nano"
+          req="$req CONFIG_PACKAGE_iperf3"
+          req="$req CONFIG_PACKAGE_mtr-json"
+          req="$req CONFIG_PACKAGE_netcat"
+          req="$req CONFIG_PACKAGE_wsdd2"
+          req="$req CONFIG_PACKAGE_zoneinfo-asia"
+          req="$req CONFIG_PACKAGE_luci-app-turboacc-mtk"
+          req="$req CONFIG_PACKAGE_kmod-tls"
+          req="$req CONFIG_PACKAGE_kmod-tcp-bbr"
+          for d in ${{ steps.variants.outputs.devs }}; do
+            req="$req ${T}_$d"
           done
 
           echo '--- 最终复核 ---'
@@ -624,6 +626,19 @@ jobs:
             done
           done
           echo 'OK  所有变体的包清单符合预期'
+
+          # 关键包必须真的进固件（2026-11-06 的教训：CI 少了 60 个包，
+          # 直到解包镜像逐个对比才发现）
+          KEYS="stubby getdns knot-dig adblock-fast ksmbd-server dufs"
+          KEYS="$KEYS ddns-scripts htop nano iperf3 mtr-json netcat wsdd2"
+          KEYS="$KEYS zoneinfo-asia luci-app-ksmbd luci-app-dufs luci-app-ddns"
+          for M in $MS; do
+            for k in $KEYS; do
+              grep -q "^${k} " "$M" || {
+                echo "固件缺关键包 $k: $(basename "$M")"; exit 1; }
+            done
+          done
+          echo 'OK  关键包齐全'
 
           # 三个硬件变体的 sysupgrade 镜像必须都在
           for v in ${{ steps.variants.outputs.devs }}; do

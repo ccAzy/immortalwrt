@@ -331,6 +331,13 @@ stage_feeds() {
       tail -20 logs/defconfig.log | cut -c1-200
       exit 1
     }
+    # 以 defconfig 为准自愈：feeds 装完后所有包符号才都存在，
+    # 这一步能把 make defconfig 丢掉的 feeds 包（stubby / knot-dig /
+    # ksmbd-server / dufs / ddns-scripts …）全部补回来。
+    if [ -x scripts/heal-config.sh ] || [ -f scripts/heal-config.sh ]; then
+      out=$(sh scripts/heal-config.sh defconfig/mt7981-ax3000.config .config)
+      echo "$out" | sed -n "s/^HEALED=/  自愈补回 /p"
+    fi
     miss=0
     for s in $req; do
       if ! grep -q "^${s}=y" .config; then
