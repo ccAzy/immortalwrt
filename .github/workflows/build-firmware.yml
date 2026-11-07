@@ -8,15 +8,15 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: '要编译哪个硬件变体'
+        description: "要编译哪个硬件变体"
         required: true
         default: all
         type: choice
         options:
-          - all      # 三个都编（64M / 112M / 256M）
-          - 112M     # 只编 112M ubootmod（多数人这台）
-          - 64M      # 只编 64M 原厂 uboot
-          - 256M     # 只编 256M 大闪存
+          - all # 三个都编（64M / 112M / 256M）
+          - 112M # 只编 112M ubootmod（多数人这台）
+          - 64M # 只编 64M 原厂 uboot
+          - 256M # 只编 256M 大闪存
   push:
     branches:
       - padavanonly-24.10-6.6

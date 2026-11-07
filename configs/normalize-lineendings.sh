@@ -33,7 +33,7 @@ trap cleanup EXIT
 # （实测过一次：主机工具因此重编 931 个对象，白费 16 分钟）。
 find "$ROOT/target" -type f \
 	\( -name '*.patch' -o -name '*.dts' -o -name '*.dtsi' \
-	   -o -name 'Kconfig' \) \
+	-o -name 'Kconfig' \) \
 	-print0 >"$WORK/all" 2>/dev/null || true
 
 echo "纳入处理范围的文件: $(tr -cd '\0' <"$WORK/all" | wc -c)"
